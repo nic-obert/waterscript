@@ -1,2 +1,2 @@
-# waterscript
+# WaterScript
 The WaterScript programming language
