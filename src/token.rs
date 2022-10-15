@@ -1,5 +1,6 @@
 
 
+#[derive(Debug)]
 pub enum Token {
 
     Comment,
@@ -33,15 +34,15 @@ pub enum Token {
 
     // Compound tokens
 
-    PlusEquals { priority: usize },
-    MinusEquals { priority: usize },
+    PlusEqual { priority: usize },
+    MinusEqual { priority: usize },
     StarEquals { priority: usize },
-    SlashEquals { priority: usize },
-    ModuloEquals { priority: usize },
+    SlashEqual { priority: usize },
+    ModuloEqual { priority: usize },
     EqualEqual { priority: usize },
-    NotEquals { priority: usize },
-    LessEquals { priority: usize },
-    GreaterEquals { priority: usize },
+    NotEqual { priority: usize },
+    LessEqual { priority: usize },
+    GreaterEqual { priority: usize },
     And { priority: usize },
     Or { priority: usize },
 
@@ -54,7 +55,27 @@ pub enum Token {
     While { priority: usize },
     For { priority: usize },
     In { priority: usize },
+    Break { priority: usize },
+    Continue { priority: usize },
 
+}
+
+
+pub fn string_to_keyword(string: &str, priority: usize) -> Option<Token> {
+    match string {
+        "fun" => Some(Token::Fun { priority }),
+        "return" => Some(Token::Return { priority }),
+        "if" => Some(Token::If { priority }),
+        "else" => Some(Token::Else { priority }),
+        "while" => Some(Token::While { priority }),
+        "for" => Some(Token::For { priority }),
+        "in" => Some(Token::In { priority }),
+        "break" => Some(Token::Break { priority }),
+        "continue" => Some(Token::Continue { priority }),
+        "true" => Some(Token::Boolean { value: true, priority }),
+        "false" => Some(Token::Boolean { value: false, priority }),
+        _ => None,
+    }
 }
 
 
@@ -98,14 +119,16 @@ fn add_variant_priority(token_variant: &mut Token) {
         Token::While { priority } => *priority += KEYWORD_PRIORITY,
         Token::For { priority } => *priority += KEYWORD_PRIORITY,
         Token::In { priority } => *priority += KEYWORD_PRIORITY,
+        Token::Break { priority } => *priority += KEYWORD_PRIORITY,
+        Token::Continue { priority } => *priority += KEYWORD_PRIORITY,
 
         // Assignment
         Token::Equal { priority } => *priority += ASSIGNMENG_PRIORITY,
-        Token::PlusEquals { priority } => *priority += ASSIGNMENG_PRIORITY,
-        Token::MinusEquals { priority } => *priority += ASSIGNMENG_PRIORITY,
+        Token::PlusEqual { priority } => *priority += ASSIGNMENG_PRIORITY,
+        Token::MinusEqual { priority } => *priority += ASSIGNMENG_PRIORITY,
         Token::StarEquals { priority } => *priority += ASSIGNMENG_PRIORITY,
-        Token::SlashEquals { priority } => *priority += ASSIGNMENG_PRIORITY,
-        Token::ModuloEquals { priority } => *priority += ASSIGNMENG_PRIORITY,
+        Token::SlashEqual { priority } => *priority += ASSIGNMENG_PRIORITY,
+        Token::ModuloEqual { priority } => *priority += ASSIGNMENG_PRIORITY,
 
         // Logical or
         Token::Or { priority } => *priority += OR_PRIORITY,
@@ -115,13 +138,13 @@ fn add_variant_priority(token_variant: &mut Token) {
 
         // Equality
         Token::EqualEqual { priority } => *priority += EQUALITY_PRIORITY,
-        Token::NotEquals { priority } => *priority += EQUALITY_PRIORITY,
+        Token::NotEqual { priority } => *priority += EQUALITY_PRIORITY,
 
         // Comparison
         Token::Less { priority } => *priority += COMPARISON_PRIORITY,
         Token::Greater { priority } => *priority += COMPARISON_PRIORITY,
-        Token::LessEquals { priority } => *priority += COMPARISON_PRIORITY,
-        Token::GreaterEquals { priority } => *priority += COMPARISON_PRIORITY,
+        Token::LessEqual { priority } => *priority += COMPARISON_PRIORITY,
+        Token::GreaterEqual { priority } => *priority += COMPARISON_PRIORITY,
 
         // Addition and subtraction
         Token::Plus { priority } => *priority += ADD_SUB_PRIORITY,

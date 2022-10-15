@@ -1,4 +1,6 @@
-use crate::token::{Token, TokenList, GROUPING_PRIORITY};
+use core::panic;
+
+use crate::token::{Token, TokenList, GROUPING_PRIORITY, string_to_keyword};
 use crate::error;
 
 
@@ -15,13 +17,13 @@ fn is_numeric_char(c: char) -> bool {
 }
 
 
-pub fn tokenize<'a>(mut script: String) -> TokenList {
+pub fn tokenize(mut script: String) -> TokenList {
 
     let mut tokens: TokenList = TokenList::new();
     let mut line: usize = 0;
 
     let mut current_token: Option<Token> = None;
-    let mut priority: usize = 0;
+    let mut current_priority: usize = 0;
 
     // Add a newline to the end of the script so that the last line is tokenized
     script.push('\n');
@@ -49,9 +51,9 @@ pub fn tokenize<'a>(mut script: String) -> TokenList {
 
                     // Differentiate between integers and floats
                     if value.contains('.') {
-                        tokens.push(Token::Float { value: value.parse().unwrap(), priority });
+                        tokens.push(Token::Float { value: value.parse().unwrap(), priority: current_priority });
                     } else {
-                        tokens.push(Token::Integer { value: value.parse().unwrap(), priority });
+                        tokens.push(Token::Integer { value: value.parse().unwrap(), priority: current_priority });
                     }
 
                     current_token = None;
@@ -62,6 +64,7 @@ pub fn tokenize<'a>(mut script: String) -> TokenList {
                 Token::String { value, priority: _ } => {
                     if ch == '"' {
                         tokens.push(current_token.take().unwrap());
+                        // current_token is None after take()
                         continue;
                     }
 
@@ -70,54 +73,165 @@ pub fn tokenize<'a>(mut script: String) -> TokenList {
                     value.push(ch);
                     continue;
                 },
+
+                Token::Identifier { value, priority: _ } => {
+                    if is_name_char(ch) {
+                        value.push(ch);
+                        continue;
+                    }
+
+                    // Check if the name is a keyword
+                    if let Some(keyword) = string_to_keyword(value, current_priority) {
+                        tokens.push(keyword);
+                        current_token = None;
+                    } else {
+                        tokens.push(current_token.take().unwrap());
+                        // current_token is None after take()
+                    }
+
+                    // The current character is not part of the name, so it must be processed again
+                },
+
+                Token::Plus { priority: _ } => {
+                    if ch == '=' {
+                        tokens.push(Token::PlusEqual { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Minus { priority: _ } => {
+                    if ch == '=' {
+                        tokens.push(Token::MinusEqual { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Star { priority: _ } => {
+                    if ch == '=' {
+                        tokens.push(Token::StarEquals { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Slash { priority: _ } => {
+                    if ch == '=' {
+                        tokens.push(Token::SlashEqual { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Modulo { priority: _ } => {
+                    if ch == '=' {
+                        tokens.push(Token::ModuloEqual { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Equal { priority: _ } => {
+                    if ch == '=' {
+                        tokens.push(Token::EqualEqual { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Not { priority: _ } => {
+                    if ch == '=' {
+                        tokens.push(Token::NotEqual { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Less { priority: _ } => {
+                    if ch == '=' {
+                        tokens.push(Token::LessEqual { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Greater { priority: _ } => {
+                    if ch == '=' {
+                        tokens.push(Token::GreaterEqual { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Ampersand { priority: _ } => {
+                    if ch == '&' {
+                        tokens.push(Token::And { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
+
+                Token::Pipe { priority: _ } => {
+                    if ch == '|' {
+                        tokens.push(Token::Or { priority: current_priority });
+                        current_token = None;
+                        continue;
+                    }
+
+                    tokens.push(current_token.take().unwrap());
+                    // current_token is None after take()
+                    continue;
+                },
                 
-                Token::Boolean { value, priority: _ } => todo!(),
-                Token::Identifier { value, priority: _ } => todo!(),
-                Token::Plus { priority: _ } => todo!(),
-                Token::Minus { priority: _ } => todo!(),
-                Token::Star { priority: _ } => todo!(),
-                Token::Slash { priority } => todo!(),
-                Token::Modulo { priority } => todo!(),
-                Token::Equal { priority } => todo!(),
-                Token::Not { priority } => todo!(),
-                Token::Less { priority } => todo!(),
-                Token::Greater { priority } => todo!(),
-                Token::Ampersand { priority } => todo!(),
-                Token::Pipe { priority } => todo!(),
-                Token::Comma { priority } => todo!(),
-                Token::OpenParen { priority } => todo!(),
-                Token::CloseParen { priority } => todo!(),
-                Token::OpenBrace { priority } => todo!(),
-                Token::CloseBrace { priority } => todo!(),
-                Token::OpenSquare { priority } => todo!(),
-                Token::CloseSquare { priority } => todo!(),
-                Token::PlusEquals { priority } => todo!(),
-                Token::MinusEquals { priority } => todo!(),
-                Token::StarEquals { priority } => todo!(),
-                Token::SlashEquals { priority } => todo!(),
-                Token::ModuloEquals { priority } => todo!(),
-                Token::EqualEqual { priority } => todo!(),
-                Token::NotEquals { priority } => todo!(),
-                Token::LessEquals { priority } => todo!(),
-                Token::GreaterEquals { priority } => todo!(),
-                Token::And { priority } => todo!(),
-                Token::Or { priority } => todo!(),
-                Token::Fun { priority } => todo!(),
-                Token::Return { priority } => todo!(),
-                Token::If { priority } => todo!(),
-                Token::Else { priority } => todo!(),
-                Token::While { priority } => todo!(),
-                Token::For { priority } => todo!(),
-                Token::In { priority } => todo!(),
-                Token::Integer { value, priority: _ } => todo!(),
-                Token::Float { value, priority: _ } => todo!(),
+                _ => panic!("Invalid token: {:?}", token),
 
             }
 
         }
 
         if is_start_of_name_char(ch) {
-            current_token = Some(Token::Identifier { value: String::new(), priority });
+            current_token = Some(Token::Identifier { value: String::new(), priority: current_priority });
             continue;
         }
 
@@ -127,43 +241,43 @@ pub fn tokenize<'a>(mut script: String) -> TokenList {
         }
 
         match ch {
-            '+' => current_token = Some(Token::Plus { priority }),
-            '-' => current_token = Some(Token::Minus { priority }),
-            '*' => current_token = Some(Token::Star { priority }),
-            '/' => current_token = Some(Token::Slash { priority }),
-            '%' => current_token = Some(Token::Modulo { priority }),
-            '=' => current_token = Some(Token::Equal { priority }),
-            '!' => current_token = Some(Token::Not { priority }),
-            '<' => current_token = Some(Token::Less { priority }),
-            '>' => current_token = Some(Token::Greater { priority }),
-            '&' => current_token = Some(Token::Ampersand { priority }),
-            '|' => current_token = Some(Token::Pipe { priority }),
-            ',' => current_token = Some(Token::Comma { priority }),
-            '"' => current_token = Some(Token::String { value: String::new(), priority }),
+            '+' => current_token = Some(Token::Plus { priority: current_priority }),
+            '-' => current_token = Some(Token::Minus { priority: current_priority }),
+            '*' => current_token = Some(Token::Star { priority: current_priority }),
+            '/' => current_token = Some(Token::Slash { priority: current_priority }),
+            '%' => current_token = Some(Token::Modulo { priority: current_priority }),
+            '=' => current_token = Some(Token::Equal { priority: current_priority }),
+            '!' => current_token = Some(Token::Not { priority: current_priority }),
+            '<' => current_token = Some(Token::Less { priority: current_priority }),
+            '>' => current_token = Some(Token::Greater { priority: current_priority }),
+            '&' => current_token = Some(Token::Ampersand { priority: current_priority }),
+            '|' => current_token = Some(Token::Pipe { priority: current_priority }),
+            ',' => current_token = Some(Token::Comma { priority: current_priority }),
+            '"' => current_token = Some(Token::String { value: String::new(), priority: current_priority }),
 
             '(' => {
-                current_token = Some(Token::OpenParen { priority });
-                priority += GROUPING_PRIORITY;
+                current_token = Some(Token::OpenParen { priority: current_priority });
+                current_priority += GROUPING_PRIORITY;
             },
             ')' => {
-                priority -= GROUPING_PRIORITY;
-                current_token = Some(Token::CloseParen { priority });
+                current_priority -= GROUPING_PRIORITY;
+                current_token = Some(Token::CloseParen { priority: current_priority });
             },
             '[' => {
-                current_token = Some(Token::OpenSquare { priority });
-                priority += GROUPING_PRIORITY;
+                current_token = Some(Token::OpenSquare { priority: current_priority });
+                current_priority += GROUPING_PRIORITY;
             },
             ']' => {
-                priority -= GROUPING_PRIORITY;
-                current_token = Some(Token::CloseSquare { priority });
+                current_priority -= GROUPING_PRIORITY;
+                current_token = Some(Token::CloseSquare { priority: current_priority });
             },
             '{' => {
-                priority += GROUPING_PRIORITY;
-                current_token = Some(Token::OpenBrace { priority });
+                current_priority += GROUPING_PRIORITY;
+                current_token = Some(Token::OpenBrace { priority: current_priority });
             },
             '}' => {
-                priority -= GROUPING_PRIORITY;
-                current_token = Some(Token::CloseBrace { priority });
+                current_priority -= GROUPING_PRIORITY;
+                current_token = Some(Token::CloseBrace { priority: current_priority });
             },
 
             '#' => current_token = Some(Token::Comment),
@@ -185,7 +299,6 @@ pub fn tokenize<'a>(mut script: String) -> TokenList {
 
         // No code should be able to reach this point
     }
-
 
     tokens
 }
