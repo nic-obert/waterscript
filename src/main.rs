@@ -1,5 +1,10 @@
 mod files;
 mod token;
+mod vm;
+mod syntax_tree;
+mod tokenizer;
+mod types;
+mod error;
 
 
 use clap::Parser;
@@ -26,6 +31,7 @@ fn main() {
 
     let contents = files::load_file(&args.input_file);
 
-    println!("{}", contents);
+    let tokens = tokenizer::tokenize(contents);
+    
 }
 
