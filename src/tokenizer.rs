@@ -24,6 +24,7 @@ pub fn tokenize(mut script: String) -> TokenList {
 
     let mut current_token: Option<Token> = None;
     let mut current_priority: usize = 0;
+    let mut string_escape: bool = false;
 
     // Add a newline to the end of the script so that the last line is tokenized
     script.push('\n');
@@ -62,13 +63,25 @@ pub fn tokenize(mut script: String) -> TokenList {
                 },
 
                 Token::String { value, priority: _ } => {
+
+                    if string_escape {
+                        value.push(match ch {
+                            'n' => '\n',
+                            't' => '\t',
+                            'r' => '\r',
+                            '"' => '"',
+                            '\\' => '\\',
+                            _ => error::invalid_escape_sequence(ch, line, &script, "Valid escape sequences are: '\\n', '\\t', '\\r', '\\\"' and '\\\\'"),
+                        });
+                        string_escape = false;
+                        continue;
+                    }
+
                     if ch == '"' {
                         tokens.push(current_token.take().unwrap());
                         // current_token is None after take()
                         continue;
                     }
-
-                    // TODO: Handle escape sequences
 
                     value.push(ch);
                     continue;
@@ -207,9 +220,10 @@ pub fn tokenize(mut script: String) -> TokenList {
                         continue;
                     }
 
-                    tokens.push(current_token.take().unwrap());
-                    // current_token is None after take()
-                    continue;
+                    error::invalid_character(ch, line, &script, "Expected '&' to be followed by another '&'. Bitwise and is not supported.");
+                    // tokens.push(current_token.take().unwrap());
+                    // // current_token is None after take()
+                    // continue;
                 },
 
                 Token::Pipe { priority: _ } => {
@@ -288,13 +302,14 @@ pub fn tokenize(mut script: String) -> TokenList {
                     tokens.push(token);
                     current_token = None;
                 }
+                tokens.push(Token::EndOfStatement { priority: current_priority });
             },
 
             // Ignored characters
             ' ' | '\t' | '\r' => continue,
             
             // Unhandled character
-            _ => error::invalid_character(ch, line, &script),
+            _ => error::invalid_character(ch, line, &script, "The character is not valid in this context."),
         }
 
         // No code should be able to reach this point

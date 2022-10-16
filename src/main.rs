@@ -31,7 +31,9 @@ fn main() {
 
     let contents = files::load_file(&args.input_file);
 
-    let tokens = tokenizer::tokenize(contents);
+    let mut tokens = tokenizer::tokenize(contents);
+
+    let syntax_tree = syntax_tree::SyntaxTree::from_token_list(&mut tokens);
     
 }
 

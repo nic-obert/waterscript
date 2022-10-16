@@ -4,6 +4,7 @@
 pub enum Token {
 
     Comment,
+    EndOfStatement { priority: usize },
 
     Numeric { value: String },
     Integer { value: i64, priority: usize },
@@ -61,6 +62,67 @@ pub enum Token {
 }
 
 
+impl Token {
+
+    pub fn get_priority(&self) -> usize {
+        match self {
+            Token::Comment => 0,
+            Token::EndOfStatement { priority: _ } => 0,
+
+            Token::Numeric { value: _ } => 0,
+            Token::Integer { value: _, priority } => *priority,
+            Token::Float { value: _, priority } => *priority,
+            Token::String { value: _, priority } => *priority,
+            Token::Boolean { value: _, priority } => *priority,
+            Token::Identifier { value: _, priority } => *priority,
+
+            Token::Plus { priority } => *priority,
+            Token::Minus { priority } => *priority,
+            Token::Star { priority } => *priority,
+            Token::Slash { priority } => *priority,
+            Token::Modulo { priority } => *priority,
+            Token::Equal { priority } => *priority,
+            Token::Not { priority } => *priority,
+            Token::Less { priority } => *priority,
+            Token::Greater { priority } => *priority,
+            Token::Ampersand { priority } => *priority,
+            Token::Pipe { priority } => *priority,
+            Token::Comma { priority } => *priority,
+
+            Token::OpenParen { priority } => *priority,
+            Token::CloseParen { priority } => *priority,
+            Token::OpenBrace { priority } => *priority,
+            Token::CloseBrace { priority } => *priority,
+            Token::OpenSquare { priority } => *priority,
+            Token::CloseSquare { priority } => *priority,
+            
+            Token::PlusEqual { priority } => *priority,
+            Token::MinusEqual { priority } => *priority,
+            Token::StarEquals { priority } => *priority,
+            Token::SlashEqual { priority } => *priority,
+            Token::ModuloEqual { priority } => *priority,
+            Token::EqualEqual { priority } => *priority,
+            Token::NotEqual { priority } => *priority,
+            Token::LessEqual { priority } => *priority,
+            Token::GreaterEqual { priority } => *priority,
+            Token::And { priority } => *priority,
+            Token::Or { priority } => *priority,
+
+            Token::Fun { priority } => *priority,
+            Token::Return { priority } => *priority,
+            Token::If { priority } => *priority,
+            Token::Else { priority } => *priority,
+            Token::While { priority } => *priority,
+            Token::For { priority } => *priority,
+            Token::In { priority } => *priority,
+            Token::Break { priority } => *priority,
+            Token::Continue { priority } => *priority,
+        }
+    }
+
+}
+
+
 pub fn string_to_keyword(string: &str, priority: usize) -> Option<Token> {
     match string {
         "fun" => Some(Token::Fun { priority }),
@@ -110,6 +172,7 @@ fn add_variant_priority(token_variant: &mut Token) {
         Token::Comma { priority } => *priority = 0,
         Token::Ampersand { priority } => *priority = 0,
         Token::Pipe { priority } => *priority = 0,
+        Token::EndOfStatement { priority } => *priority = 0,
 
         // Keyword operators
         Token::Fun { priority } => *priority += KEYWORD_PRIORITY,
@@ -186,6 +249,10 @@ impl TokenList {
     pub fn push(&mut self, mut token: Token) {
         add_variant_priority(&mut token);
         self.tokens.push(token);
+    }
+
+    pub fn extract_tokens(&mut self) -> Vec<Token> {
+        std::mem::take(&mut self.tokens)
     }
 
 }

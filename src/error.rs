@@ -5,7 +5,12 @@ fn error(message: String) -> ! {
 }
 
 
-pub fn invalid_character(c: char, line: usize, script: &str) -> ! {
-    error(format!("Invalid character '{}' at line {}:\n{}", c, line, script));
+pub fn invalid_character(c: char, line: usize, script: &str, hint: &str) -> ! {
+    error(format!("Invalid character '{}' at line {}:\n{}\n\n{}", c, line, script, hint));
+}
+
+
+pub fn invalid_escape_sequence(c: char, line: usize, script: &str, hint: &str) -> ! {
+    error(format!("Invalid escape sequence '{}' at line {}:\n{}\n\n{}", c, line, script, hint));
 }
 
