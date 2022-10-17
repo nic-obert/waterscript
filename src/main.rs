@@ -5,6 +5,7 @@ mod syntax_tree;
 mod tokenizer;
 mod types;
 mod error;
+mod byte_code;
 
 
 use clap::Parser;
