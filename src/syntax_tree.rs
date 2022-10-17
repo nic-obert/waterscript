@@ -97,8 +97,8 @@ impl SyntaxTree {
                 
                 Token::Plus { priority: _ } => {
                     let b = tokens.remove(index + 1);
-                    // this way the indexes get fucked up, fix later
                     let a = tokens.remove(index - 1);
+                    
                 },
                 Token::Minus { priority } => todo!(),
                 Token::Star { priority } => todo!(),
