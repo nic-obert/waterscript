@@ -5,46 +5,46 @@ use crate::token::{Token, TokenList};
 enum SyntaxNode {
 
     // Operators
-    Add { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Sub { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Mul { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Div { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Mod { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Assign { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignAdd { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignSub { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignMul { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignDiv { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignMod { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    And { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Or { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Not { a: Box<SyntaxNode> },
-    Less { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Greater { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    LessEqual { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    GreaterEqual { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Equal { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    NotEqual { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Add { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Sub { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Mul { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Div { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Mod { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Assign { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
+    AssignAdd { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
+    AssignSub { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
+    AssignMul { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
+    AssignDiv { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
+    AssignMod { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
+    And { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Or { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Not { priority: usize, a: Box<SyntaxNode> },
+    Less { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Greater { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    LessEqual { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    GreaterEqual { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Equal { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    NotEqual { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode> },
 
     // Literals & Identifiers
-    Int { value: i64 },
-    Float { value: f64 },
-    String { value: String },
-    Boolean { value: bool },
-    List { elements: Vec<SyntaxNode> },
-    Identifier { value: String },
+    Int { priority: usize, value: i64 },
+    Float { priority: usize, value: f64 },
+    String { priority: usize, value: String },
+    Boolean { priority: usize, value: bool },
+    List { priority: usize, elements: Vec<SyntaxNode> },
+    Identifier { priority: usize, value: String },
 
     // Keywords
-    Fun { name: String, args: Vec<String>, body: Box<SyntaxNode> },
-    Return { value: Option<Box<SyntaxNode>> },
-    If { condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_body: Option<Box<SyntaxNode>> },
-    While { condition: Box<SyntaxNode>, body: Box<SyntaxNode> },
-    For { name: String, iterable: Box<SyntaxNode>, body: Box<SyntaxNode> },
-    Break,
-    Continue,
+    Fun { priority: usize, name: String, args: Vec<String>, body: Box<SyntaxNode> },
+    Return { priority: usize, value: Option<Box<SyntaxNode>> },
+    If { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_body: Option<Box<SyntaxNode>> },
+    While { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode> },
+    For { priority: usize, name: String, iterable: Box<SyntaxNode>, body: Box<SyntaxNode> },
+    Break { priority: usize },
+    Continue { priority: usize },
 
     // Grouping
-    Scope { statements: Vec<SyntaxTree> },
+    Scope { priority: usize, statements: Vec<SyntaxTree> },
     
 }
 
@@ -61,7 +61,7 @@ fn get_highest_priority(tokens: &Vec<Token>) -> usize {
     let mut highest_priority_index: usize = 0;
     for (index, token) in tokens.iter().enumerate() {
         // Do not advance past the end of the statement when searching for the highest priority.
-        if let Token::EndOfStatement { priority: _ } = token {
+        if matches!(token, Token::EndOfStatement { .. }) {
             break;
         }
         if token.get_priority() > highest_priority {
