@@ -34,7 +34,7 @@ fn main() {
 
     let mut tokens = tokenizer::tokenize(contents);
 
-    let syntax_tree = syntax_tree::SyntaxTree::from_token_list(&mut tokens);
+    let syntax_tree = syntax_tree::SyntaxTree::from_tokens(&mut tokens.extract_tokens());
     
 }
 

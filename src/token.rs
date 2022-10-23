@@ -151,6 +151,7 @@ pub const ADD_SUB_PRIORITY: usize = 7;
 pub const MUL_DIV_MOD_PRIORITY: usize = 8;
 pub const NOT_PRIORITY: usize = 9;
 pub const GROUPING_PRIORITY: usize = 10;
+pub const VALUE_PRIORITY: usize = 11;
 
 
 fn add_variant_priority(token_variant: &mut Token) {
@@ -163,12 +164,14 @@ fn add_variant_priority(token_variant: &mut Token) {
         Token::Comment => panic!("Comment token should not be added to the token list"),
         Token::Numeric { value: _ } => panic!("Numeric token should not be added to the token list"),
 
+        // Value tokens, need to be evaluated first for operators to use them
+        Token::Integer { value: _, priority } => *priority = VALUE_PRIORITY,
+        Token::Float { value: _, priority } => *priority = VALUE_PRIORITY,
+        Token::String { value: _, priority } => *priority = VALUE_PRIORITY,
+        Token::Boolean { value: _, priority } => *priority = VALUE_PRIORITY,
+        Token::Identifier { value: _, priority } => *priority = VALUE_PRIORITY,
+        
         // Non-operation tokens
-        Token::Integer { value: _, priority } => *priority = 0,
-        Token::Float { value: _, priority } => *priority = 0,
-        Token::String { value: _, priority } => *priority = 0,
-        Token::Boolean { value: _, priority } => *priority = 0,
-        Token::Identifier { value: _, priority } => *priority = 0,
         Token::Comma { priority } => *priority = 0,
         Token::Ampersand { priority } => *priority = 0,
         Token::Pipe { priority } => *priority = 0,
