@@ -81,13 +81,21 @@ impl SyntaxTree {
 
         while tokens.len() > 0 {
             let index = get_highest_priority(&tokens);
+            // Be careful about indices after this line
+            // Previous token: index - 1, next token: index
             let token = tokens.remove(index);
             
             match token {
 
                 Token::EndOfStatement { priority: _ } => {
+                    // Don't add empty statements.
                     if !current_statement.is_empty() {
+                        // Once the statement is parsed into a syntax tree, there should be only one root node.
                         statements.push(current_statement.remove(0));
+                        if !current_statement.is_empty() {
+                            // TODO: handle error message
+                            panic!("Statement did not parse correctly.");
+                        }
                         current_statement = Vec::new();
                     }
                 },

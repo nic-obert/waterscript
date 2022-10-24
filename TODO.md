@@ -6,12 +6,11 @@ Project Description
 
 ### Todo
 
-- [ ] create syntax tree and syntax nodes that represent operations  
-- [ ] jit compiler that translates syntax tree to byte code  
 - [ ] create python-like byte code and vm  
 
 ### In Progress
 
+- [ ] create syntax tree and syntax nodes that represent operations  
 
 ### Done ✓
 
