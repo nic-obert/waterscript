@@ -17,7 +17,7 @@ fn is_numeric_char(c: char) -> bool {
 }
 
 
-pub fn tokenize(mut script: String) -> TokenList {
+pub fn tokenize(script: &String) -> TokenList {
 
     let mut tokens: TokenList = TokenList::new();
     let mut line: usize = 0;
@@ -26,16 +26,13 @@ pub fn tokenize(mut script: String) -> TokenList {
     let mut current_priority: usize = 0;
     let mut string_escape: bool = false;
 
-    // Add a newline to the end of the script so that the last line is tokenized
-    script.push('\n');
-
     for ch in script.chars() {
 
         if let Some(token) = &mut current_token {
 
             match token {
 
-                Token::Comment => {
+                Token::Comment { .. } => {
                     // Ignore all characters until the end of the line
                     if ch != '\n' {
                         continue;
@@ -44,7 +41,7 @@ pub fn tokenize(mut script: String) -> TokenList {
                     current_token = None;
                 },
 
-                Token::Numeric { value } => {
+                Token::Numeric { value, .. } => {
                     if is_numeric_char(ch) {
                         value.push(ch);
                         continue;
@@ -52,9 +49,9 @@ pub fn tokenize(mut script: String) -> TokenList {
 
                     // Differentiate between integers and floats
                     if value.contains('.') {
-                        tokens.push(Token::Float { value: value.parse().unwrap(), priority: current_priority });
+                        tokens.push(Token::Float { value: value.parse().unwrap(), priority: current_priority, line });
                     } else {
-                        tokens.push(Token::Integer { value: value.parse().unwrap(), priority: current_priority });
+                        tokens.push(Token::Integer { value: value.parse().unwrap(), priority: current_priority, line });
                     }
 
                     current_token = None;
@@ -62,7 +59,7 @@ pub fn tokenize(mut script: String) -> TokenList {
                     // The current character is not part of the number, so it must be processed again
                 },
 
-                Token::String { value, priority: _ } => {
+                Token::String { value, .. } => {
 
                     if string_escape {
                         value.push(match ch {
@@ -87,14 +84,14 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Identifier { value, priority: _ } => {
+                Token::Identifier { value, .. } => {
                     if is_name_char(ch) {
                         value.push(ch);
                         continue;
                     }
 
                     // Check if the name is a keyword
-                    if let Some(keyword) = string_to_keyword(value, current_priority) {
+                    if let Some(keyword) = string_to_keyword(value, current_priority, line) {
                         tokens.push(keyword);
                         current_token = None;
                     } else {
@@ -105,9 +102,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     // The current character is not part of the name, so it must be processed again
                 },
 
-                Token::Plus { priority: _ } => {
+                Token::Plus { .. } => {
                     if ch == '=' {
-                        tokens.push(Token::PlusEqual { priority: current_priority });
+                        tokens.push(Token::PlusEqual { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -117,9 +114,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Minus { priority: _ } => {
+                Token::Minus { .. } => {
                     if ch == '=' {
-                        tokens.push(Token::MinusEqual { priority: current_priority });
+                        tokens.push(Token::MinusEqual { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -129,9 +126,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Star { priority: _ } => {
+                Token::Star { .. } => {
                     if ch == '=' {
-                        tokens.push(Token::StarEquals { priority: current_priority });
+                        tokens.push(Token::StarEquals { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -141,9 +138,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Slash { priority: _ } => {
+                Token::Slash { .. } => {
                     if ch == '=' {
-                        tokens.push(Token::SlashEqual { priority: current_priority });
+                        tokens.push(Token::SlashEqual { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -153,9 +150,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Modulo { priority: _ } => {
+                Token::Modulo { .. } => {
                     if ch == '=' {
-                        tokens.push(Token::ModuloEqual { priority: current_priority });
+                        tokens.push(Token::ModuloEqual { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -165,9 +162,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Equal { priority: _ } => {
+                Token::Equal { .. } => {
                     if ch == '=' {
-                        tokens.push(Token::EqualEqual { priority: current_priority });
+                        tokens.push(Token::EqualEqual { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -177,9 +174,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Not { priority: _ } => {
+                Token::Not { .. } => {
                     if ch == '=' {
-                        tokens.push(Token::NotEqual { priority: current_priority });
+                        tokens.push(Token::NotEqual { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -189,9 +186,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Less { priority: _ } => {
+                Token::Less { .. } => {
                     if ch == '=' {
-                        tokens.push(Token::LessEqual { priority: current_priority });
+                        tokens.push(Token::LessEqual { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -201,9 +198,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Greater { priority: _ } => {
+                Token::Greater { .. } => {
                     if ch == '=' {
-                        tokens.push(Token::GreaterEqual { priority: current_priority });
+                        tokens.push(Token::GreaterEqual { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -213,9 +210,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     continue;
                 },
 
-                Token::Ampersand { priority: _ } => {
+                Token::Ampersand { .. } => {
                     if ch == '&' {
-                        tokens.push(Token::And { priority: current_priority });
+                        tokens.push(Token::And { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -226,9 +223,9 @@ pub fn tokenize(mut script: String) -> TokenList {
                     // continue;
                 },
 
-                Token::Pipe { priority: _ } => {
+                Token::Pipe { .. } => {
                     if ch == '|' {
-                        tokens.push(Token::Or { priority: current_priority });
+                        tokens.push(Token::Or { priority: current_priority, line });
                         current_token = None;
                         continue;
                     }
@@ -245,56 +242,56 @@ pub fn tokenize(mut script: String) -> TokenList {
         }
 
         if is_start_of_name_char(ch) {
-            current_token = Some(Token::Identifier { value: String::new(), priority: current_priority });
+            current_token = Some(Token::Identifier { value: String::new(), priority: current_priority, line });
             continue;
         }
 
         if is_numeric_char(ch) {
-            current_token = Some(Token::Numeric { value: ch.to_string() });
+            current_token = Some(Token::Numeric { value: ch.to_string(), line });
             continue;
         }
 
         match ch {
-            '+' => current_token = Some(Token::Plus { priority: current_priority }),
-            '-' => current_token = Some(Token::Minus { priority: current_priority }),
-            '*' => current_token = Some(Token::Star { priority: current_priority }),
-            '/' => current_token = Some(Token::Slash { priority: current_priority }),
-            '%' => current_token = Some(Token::Modulo { priority: current_priority }),
-            '=' => current_token = Some(Token::Equal { priority: current_priority }),
-            '!' => current_token = Some(Token::Not { priority: current_priority }),
-            '<' => current_token = Some(Token::Less { priority: current_priority }),
-            '>' => current_token = Some(Token::Greater { priority: current_priority }),
-            '&' => current_token = Some(Token::Ampersand { priority: current_priority }),
-            '|' => current_token = Some(Token::Pipe { priority: current_priority }),
-            ',' => current_token = Some(Token::Comma { priority: current_priority }),
-            '"' => current_token = Some(Token::String { value: String::new(), priority: current_priority }),
+            '+' => current_token = Some(Token::Plus { priority: current_priority, line }),
+            '-' => current_token = Some(Token::Minus { priority: current_priority, line }),
+            '*' => current_token = Some(Token::Star { priority: current_priority, line }),
+            '/' => current_token = Some(Token::Slash { priority: current_priority, line }),
+            '%' => current_token = Some(Token::Modulo { priority: current_priority, line }),
+            '=' => current_token = Some(Token::Equal { priority: current_priority, line }),
+            '!' => current_token = Some(Token::Not { priority: current_priority, line }),
+            '<' => current_token = Some(Token::Less { priority: current_priority, line }),
+            '>' => current_token = Some(Token::Greater { priority: current_priority, line }),
+            '&' => current_token = Some(Token::Ampersand { priority: current_priority, line }),
+            '|' => current_token = Some(Token::Pipe { priority: current_priority, line }),
+            ',' => current_token = Some(Token::Comma { priority: current_priority, line }),
+            '"' => current_token = Some(Token::String { value: String::new(), priority: current_priority, line }),
 
             '(' => {
-                current_token = Some(Token::OpenParen { priority: current_priority });
+                current_token = Some(Token::OpenParen { priority: current_priority, line });
                 current_priority += GROUPING_PRIORITY;
             },
             ')' => {
                 current_priority -= GROUPING_PRIORITY;
-                current_token = Some(Token::CloseParen { priority: current_priority });
+                current_token = Some(Token::CloseParen { priority: current_priority, line });
             },
             '[' => {
-                current_token = Some(Token::OpenSquare { priority: current_priority });
+                current_token = Some(Token::OpenSquare { priority: current_priority, line });
                 current_priority += GROUPING_PRIORITY;
             },
             ']' => {
                 current_priority -= GROUPING_PRIORITY;
-                current_token = Some(Token::CloseSquare { priority: current_priority });
+                current_token = Some(Token::CloseSquare { priority: current_priority, line });
             },
             '{' => {
                 current_priority += GROUPING_PRIORITY;
-                current_token = Some(Token::OpenBrace { priority: current_priority });
+                current_token = Some(Token::OpenBrace { priority: current_priority, line });
             },
             '}' => {
                 current_priority -= GROUPING_PRIORITY;
-                current_token = Some(Token::CloseBrace { priority: current_priority });
+                current_token = Some(Token::CloseBrace { priority: current_priority, line });
             },
 
-            '#' => current_token = Some(Token::Comment),
+            '#' => current_token = Some(Token::Comment { line }),
 
             '\n' => {
                 line += 1;
@@ -302,7 +299,7 @@ pub fn tokenize(mut script: String) -> TokenList {
                     tokens.push(token);
                     current_token = None;
                 }
-                tokens.push(Token::EndOfStatement { priority: current_priority });
+                tokens.push(Token::EndOfStatement { priority: current_priority, line });
             },
 
             // Ignored characters

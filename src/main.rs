@@ -30,11 +30,11 @@ fn main() {
     
     let args = Cli::parse();
 
-    let contents = files::load_file(&args.input_file);
+    let script = files::load_file(&args.input_file);
 
-    let mut tokens = tokenizer::tokenize(contents);
+    let mut tokens = tokenizer::tokenize(&script);
 
-    let syntax_tree = syntax_tree::SyntaxTree::from_tokens(&mut tokens.extract_tokens());
+    let syntax_tree = syntax_tree::SyntaxTree::from_tokens(&mut tokens.extract_tokens(), &script);
     
 }
 

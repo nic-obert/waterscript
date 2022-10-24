@@ -1,50 +1,96 @@
-use crate::token::{Token, TokenList};
+use crate::token::Token;
+use crate::error;
+use std::mem;
 
 
 /// Represents a syntax unit with meaning.
-enum SyntaxNode {
+pub enum SyntaxNode {
 
     // Operators
-    Add { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Sub { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Mul { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Div { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Mod { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Assign { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignAdd { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignSub { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignMul { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignDiv { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    AssignMod { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode> },
-    And { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Or { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Not { a: Box<SyntaxNode> },
-    Less { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Greater { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    LessEqual { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    GreaterEqual { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    Equal { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
-    NotEqual { a: Box<SyntaxNode>, b: Box<SyntaxNode> },
+    Add { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Sub { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Mul { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Div { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Mod { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Assign { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
+    AssignAdd { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
+    AssignSub { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
+    AssignMul { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
+    AssignDiv { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
+    AssignMod { lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
+    And { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Or { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Not { a: Box<SyntaxNode>, line: usize },
+    Less { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Greater { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    LessEqual { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    GreaterEqual { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Equal { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    NotEqual { a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
 
     // Literals & Identifiers
-    Int { value: i64 },
-    Float { value: f64 },
-    String { value: String },
-    Boolean { value: bool },
-    List { elements: Vec<SyntaxNode> },
-    Identifier { value: String },
+    Int { value: i64, line: usize },
+    Float { value: f64, line: usize },
+    String { value: String, line: usize },
+    Boolean { value: bool, line: usize },
+    List { elements: Vec<SyntaxNode>, line: usize },
+    Identifier { value: String, line: usize },
 
     // Keywords
-    Fun { name: String, args: Vec<String>, body: Box<SyntaxNode> },
-    Return { value: Option<Box<SyntaxNode>> },
-    If { condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_body: Option<Box<SyntaxNode>> },
-    While { condition: Box<SyntaxNode>, body: Box<SyntaxNode> },
-    For { name: String, iterable: Box<SyntaxNode>, body: Box<SyntaxNode> },
-    Break { priority: usize },
-    Continue { priority: usize },
+    Fun { name: String, args: Vec<String>, body: Box<SyntaxNode>, line: usize },
+    Return { value: Option<Box<SyntaxNode>>, line: usize },
+    If { condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_body: Option<Box<SyntaxNode>>, line: usize },
+    While { condition: Box<SyntaxNode>, body: Box<SyntaxNode>, line: usize },
+    For { name: String, iterable: Box<SyntaxNode>, body: Box<SyntaxNode>, line: usize },
+    Break { priority: usize, line: usize },
+    Continue { priority: usize, line: usize },
 
     // Grouping
-    Scope { statements: Vec<SyntaxTree> },
+    Scope { statements: Vec<SyntaxTree>, line: usize },
+
+}
+
+
+impl SyntaxNode {
+
+    pub fn get_line(&self) -> usize {
+        match self {
+            SyntaxNode::Add { line, .. } => *line,
+            SyntaxNode::Sub { line, .. } => *line,
+            SyntaxNode::Mul { line, .. } => *line,
+            SyntaxNode::Div { line, .. } => *line,
+            SyntaxNode::Mod { line, .. } => *line,
+            SyntaxNode::Assign { line, .. } => *line,
+            SyntaxNode::AssignAdd { line, .. } => *line,
+            SyntaxNode::AssignSub { line, .. } => *line,
+            SyntaxNode::AssignMul { line, .. } => *line,
+            SyntaxNode::AssignDiv { line, .. } => *line,
+            SyntaxNode::AssignMod { line, .. } => *line,
+            SyntaxNode::And { line, .. } => *line,
+            SyntaxNode::Or { line, .. } => *line,
+            SyntaxNode::Not { line, .. } => *line,
+            SyntaxNode::Less { line, .. } => *line,
+            SyntaxNode::Greater { line, .. } => *line,
+            SyntaxNode::LessEqual { line, .. } => *line,
+            SyntaxNode::GreaterEqual { line, .. } => *line,
+            SyntaxNode::Equal { line, .. } => *line,
+            SyntaxNode::NotEqual { line, .. } => *line,
+            SyntaxNode::Int { line, .. } => *line,
+            SyntaxNode::Float { line, .. } => *line,
+            SyntaxNode::String { line, .. } => *line,
+            SyntaxNode::Boolean { line, .. } => *line,
+            SyntaxNode::List { line, .. } => *line,
+            SyntaxNode::Identifier { line, .. } => *line,
+            SyntaxNode::Fun { line, .. } => *line,
+            SyntaxNode::Return { line, .. } => *line,
+            SyntaxNode::If { line, .. } => *line,
+            SyntaxNode::While { line, .. } => *line,
+            SyntaxNode::For { line, .. } => *line,
+            SyntaxNode::Break { line, .. } => *line,
+            SyntaxNode::Continue { line, .. } => *line,
+            SyntaxNode::Scope { line, .. } => *line,
+        }
+    }
 
 }
 
@@ -73,9 +119,18 @@ fn get_highest_priority(tokens: &Vec<Token>) -> usize {
 }
 
 
+fn extract_token(tokens: &mut Vec<Token>, operator: &Token, index: usize, script: &str) -> Token {
+    if index < tokens.len() {
+        tokens.remove(index)
+    } else {
+        error::expected_operand(operator.get_line(), operator, script);
+    }
+}
+
+
 impl SyntaxTree {
 
-    pub fn from_tokens(tokens: &mut Vec<Token>) -> SyntaxTree {
+    pub fn from_tokens(tokens: &mut Vec<Token>, script: &str) -> SyntaxTree {
         let mut statements: Vec<SyntaxNode> = Vec::new();
         let mut current_statement: Vec<SyntaxNode> = Vec::new();
 
@@ -83,11 +138,11 @@ impl SyntaxTree {
             let index = get_highest_priority(&tokens);
             // Be careful about indices after this line
             // Previous token: index - 1, next token: index
-            let token = tokens.remove(index);
+            let mut token = tokens.remove(index);
             
-            match token {
+            match &mut token {
 
-                Token::EndOfStatement { priority: _ } => {
+                Token::EndOfStatement { .. } => {
                     // Don't add empty statements.
                     if !current_statement.is_empty() {
                         // Once the statement is parsed into a syntax tree, there should be only one root node.
@@ -101,50 +156,53 @@ impl SyntaxTree {
                 },
 
                 // Value tokens
-                Token::Integer { value, priority: _ } => current_statement.push(SyntaxNode::Int { value }),
-                Token::Float { value, priority: _ } => current_statement.push(SyntaxNode::Float { value }),
-                Token::String { value, priority: _ } => current_statement.push(SyntaxNode::String { value }),
-                Token::Boolean { value, priority: _ } => current_statement.push(SyntaxNode::Boolean { value }),
-                Token::Identifier { value, priority: _ } => current_statement.push(SyntaxNode::Identifier { value }),
+                Token::Integer { value, .. } => current_statement.push(SyntaxNode::Int { value: *value, line: token.get_line() }),
+                Token::Float { value, .. } => current_statement.push(SyntaxNode::Float { value: *value, line: token.get_line() }),
+                Token::String { value, .. } => current_statement.push(SyntaxNode::String { value: mem::take(value), line: token.get_line() }),
+                Token::Boolean { value, .. } => current_statement.push(SyntaxNode::Boolean { value: *value, line: token.get_line() }),
+                Token::Identifier { value, .. } => current_statement.push(SyntaxNode::Identifier { value: mem::take(value), line: token.get_line() }),
                 
-                Token::Plus { priority: _ } => {
-                   
+                Token::Plus { .. } => {
+                    let a = extract_token(tokens, &token, index - 1, script);
+                    let b = extract_token(tokens, &token, index - 1, script);
+
+                    
                 },
 
-                Token::Minus { priority } => todo!(),
-                Token::Star { priority } => todo!(),
-                Token::Slash { priority } => todo!(),
-                Token::Modulo { priority } => todo!(),
-                Token::Equal { priority } => todo!(),
-                Token::Not { priority } => todo!(),
-                Token::Less { priority } => todo!(),
-                Token::Greater { priority } => todo!(),
-                Token::OpenParen { priority } => todo!(),
-                Token::CloseParen { priority } => todo!(),
-                Token::OpenBrace { priority } => todo!(),
-                Token::CloseBrace { priority } => todo!(),
-                Token::OpenSquare { priority } => todo!(),
-                Token::CloseSquare { priority } => todo!(),
-                Token::PlusEqual { priority } => todo!(),
-                Token::MinusEqual { priority } => todo!(),
-                Token::StarEquals { priority } => todo!(),
-                Token::SlashEqual { priority } => todo!(),
-                Token::ModuloEqual { priority } => todo!(),
-                Token::EqualEqual { priority } => todo!(),
-                Token::NotEqual { priority } => todo!(),
-                Token::LessEqual { priority } => todo!(),
-                Token::GreaterEqual { priority } => todo!(),
-                Token::And { priority } => todo!(),
-                Token::Or { priority } => todo!(),
-                Token::Fun { priority } => todo!(),
-                Token::Return { priority } => todo!(),
-                Token::If { priority } => todo!(),
-                Token::Else { priority } => todo!(),
-                Token::While { priority } => todo!(),
-                Token::For { priority } => todo!(),
-                Token::In { priority } => todo!(),
-                Token::Break { priority } => todo!(),
-                Token::Continue { priority } => todo!(),
+                Token::Minus { .. } => todo!(),
+                Token::Star { .. } => todo!(),
+                Token::Slash { .. } => todo!(),
+                Token::Modulo { .. } => todo!(),
+                Token::Equal { .. } => todo!(),
+                Token::Not { .. } => todo!(),
+                Token::Less { .. } => todo!(),
+                Token::Greater { .. } => todo!(),
+                Token::OpenParen { .. } => todo!(),
+                Token::CloseParen { .. } => todo!(),
+                Token::OpenBrace { .. } => todo!(),
+                Token::CloseBrace { .. } => todo!(),
+                Token::OpenSquare { .. } => todo!(),
+                Token::CloseSquare { .. } => todo!(),
+                Token::PlusEqual { .. } => todo!(),
+                Token::MinusEqual { .. } => todo!(),
+                Token::StarEquals { .. } => todo!(),
+                Token::SlashEqual { .. } => todo!(),
+                Token::ModuloEqual { .. } => todo!(),
+                Token::EqualEqual { .. } => todo!(),
+                Token::NotEqual { .. } => todo!(),
+                Token::LessEqual { .. } => todo!(),
+                Token::GreaterEqual { .. } => todo!(),
+                Token::And { .. } => todo!(),
+                Token::Or { .. } => todo!(),
+                Token::Fun { .. } => todo!(),
+                Token::Return { .. } => todo!(),
+                Token::If { .. } => todo!(),
+                Token::Else { .. } => todo!(),
+                Token::While { .. } => todo!(),
+                Token::For { .. } => todo!(),
+                Token::In { .. } => todo!(),
+                Token::Break { .. } => todo!(),
+                Token::Continue { .. } => todo!(),
 
                 _ => panic!("Unexpected token while building syntax tree: {:?}", token),
                 
