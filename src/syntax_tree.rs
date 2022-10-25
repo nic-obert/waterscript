@@ -4,6 +4,7 @@ use std::mem;
 
 
 /// Represents a syntax unit with meaning.
+#[derive(Clone)]
 pub enum SyntaxNode {
 
     // Operators
@@ -48,6 +49,9 @@ pub enum SyntaxNode {
     // Grouping
     Scope { statements: Vec<SyntaxTree>, line: usize },
 
+    // Misc
+    Placeholder,
+
 }
 
 
@@ -89,6 +93,7 @@ impl SyntaxNode {
             SyntaxNode::Break { line, .. } => *line,
             SyntaxNode::Continue { line, .. } => *line,
             SyntaxNode::Scope { line, .. } => *line,
+            SyntaxNode::Placeholder => panic!("Placeholder node has no line number"),
         }
     }
 
@@ -96,6 +101,7 @@ impl SyntaxNode {
 
 
 /// Represents the statements in the source code.
+#[derive(Clone)]
 pub struct SyntaxTree {
     statements: Vec<SyntaxNode>,
 }
@@ -119,9 +125,11 @@ fn get_highest_priority(tokens: &Vec<Token>) -> usize {
 }
 
 
-fn extract_token(tokens: &mut Vec<Token>, operator: &Token, index: usize, script: &str) -> Token {
-    if index < tokens.len() {
-        tokens.remove(index)
+fn extract_node(nodes: &mut Vec<SyntaxNode>, operator: &Token, index: usize, script: &str) -> SyntaxNode {
+    if index > nodes.len() {
+        let mut node = SyntaxNode::Placeholder;
+        mem::swap(&mut node, &mut nodes[index]);
+        node
     } else {
         error::expected_operand(operator.get_line(), operator, script);
     }
@@ -132,7 +140,7 @@ impl SyntaxTree {
 
     pub fn from_tokens(tokens: &mut Vec<Token>, script: &str) -> SyntaxTree {
         let mut statements: Vec<SyntaxNode> = Vec::new();
-        let mut current_statement: Vec<SyntaxNode> = Vec::new();
+        let mut current_statement: Vec<SyntaxNode> = vec![SyntaxNode::Placeholder; tokens.len()];
 
         while tokens.len() > 0 {
             let index = get_highest_priority(&tokens);
@@ -163,8 +171,7 @@ impl SyntaxTree {
                 Token::Identifier { value, .. } => current_statement.push(SyntaxNode::Identifier { value: mem::take(value), line: token.get_line() }),
                 
                 Token::Plus { .. } => {
-                    let a = extract_token(tokens, &token, index - 1, script);
-                    let b = extract_token(tokens, &token, index - 1, script);
+                    let a = extract_node(&mut current_statement, &token, index - 1, script);
 
                     
                 },
