@@ -259,6 +259,7 @@ pub fn string_to_keyword(string: &str, priority: usize, line: usize) -> Option<T
 }
 
 
+pub const VALUE_PRIORITY: usize = 0;
 pub const KEYWORD_PRIORITY: usize = 1;
 pub const ASSIGNMENG_PRIORITY: usize = 2;
 pub const OR_PRIORITY: usize = 3;
@@ -269,7 +270,6 @@ pub const ADD_SUB_PRIORITY: usize = 7;
 pub const MUL_DIV_MOD_PRIORITY: usize = 8;
 pub const NOT_PRIORITY: usize = 9;
 pub const GROUPING_PRIORITY: usize = 10;
-pub const VALUE_PRIORITY: usize = 11;
 
 
 fn add_variant_priority(token_variant: &mut Token) {
