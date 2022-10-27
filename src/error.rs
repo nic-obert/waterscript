@@ -36,3 +36,8 @@ pub fn unmatched_square_bracket(line: usize, script: &str) -> ! {
     error(format!("Could not find a matching closing square bracket for square bracket open at line {}:\n{}\n\n", line, script));
 }
 
+
+pub fn unmatched_curly_brace(line: usize, script: &str) -> ! {
+    error(format!("Could not find a matching closing curly brace for curly brace open at line {}:\n{}\n\n", line, script));
+}
+
