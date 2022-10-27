@@ -41,3 +41,13 @@ pub fn unmatched_curly_brace(line: usize, script: &str) -> ! {
     error(format!("Could not find a matching closing curly brace for curly brace open at line {}:\n{}\n\n", line, script));
 }
 
+
+pub fn too_many_statements_in_parentheses(line: usize, script: &str) -> ! {
+    error(format!("Parentheses can only contain one statement at line {}:\n{}\n\n", line, script));
+}
+
+
+pub fn too_many_statements_in_square_brackets(line: usize, script: &str) -> ! {
+    error(format!("Square brackets can only contain one statement at line {}:\n{}\n\n", line, script));
+}
+

@@ -27,6 +27,7 @@ pub enum SyntaxNode {
     GreaterEqual { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
     Equal { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
     NotEqual { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
+    Subscript { priority: usize, target: Box<SyntaxNode>, index: Box<SyntaxNode>, line: usize },
 
     // Literals & Identifiers
     Int { priority: usize, value: i64, line: usize },
@@ -53,7 +54,6 @@ pub enum SyntaxNode {
 
     // Misc
     Placeholder,
-    EndOfStatement { line: usize },
 
 }
 
@@ -107,8 +107,8 @@ impl SyntaxNode {
             SyntaxNode::Continue { line, .. } => *line,
             SyntaxNode::Scope { line, .. } => *line,
             SyntaxNode::Placeholder => panic!("Placeholder node has no line number"),
-            SyntaxNode::EndOfStatement { line } => *line,
             SyntaxNode::Parenthesis { line, .. } => *line,
+            SyntaxNode::Subscript { line, .. } => *line,
         }
     }
 
@@ -152,8 +152,8 @@ impl SyntaxNode {
             SyntaxNode::Continue { priority, .. } => *priority,
             SyntaxNode::Scope { priority, .. } => *priority,
             SyntaxNode::Placeholder => panic!("Placeholder node has no priority"),
-            SyntaxNode::EndOfStatement { .. } => 0,
             SyntaxNode::Parenthesis { priority, .. } => *priority,
+            SyntaxNode::Subscript { priority, .. } => *priority,
         }
     }
 
@@ -167,15 +167,11 @@ pub struct SyntaxTree {
 }
 
 
-/// Returns the highest priority index in the first statement.
+/// Returns the index of the highest priority node in the list.
 fn get_highest_priority(nodes: &[SyntaxNode]) -> usize {
     let mut highest_priority: usize = 0;
     let mut highest_priority_index: usize = 0;
     for (index, node) in nodes.iter().enumerate() {
-        // Do not advance past the end of the statement when searching for the highest priority.
-        if matches!(node, SyntaxNode::EndOfStatement { .. }) {
-            break;
-        }
         if node.get_priority() > highest_priority {
             highest_priority = node.get_priority();
             highest_priority_index = index;
@@ -260,9 +256,10 @@ fn extract_brace_content<'a>(open_brace: &Token, tokens: &'a [Token], script: &s
 }
 
 
-fn tokens_to_syntax_nodes(tokens: &[Token], script: &str) -> Vec<SyntaxNode> {
-    // The syntax number of syntax nodes is always <= the number of tokens.
-    let mut nodes: Vec<SyntaxNode> = Vec::with_capacity(tokens.len());
+fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<SyntaxNode>> {
+    let mut statements: Vec<Vec<SyntaxNode>> = Vec::new();
+    let mut current_statement: Vec<SyntaxNode> = Vec::new();
+
     let mut i: usize = 0;
 
     while i < tokens.len() {
@@ -270,64 +267,65 @@ fn tokens_to_syntax_nodes(tokens: &[Token], script: &str) -> Vec<SyntaxNode> {
 
         match token {
 
-            Token::EndOfStatement { line, .. } => {
-                nodes.push(SyntaxNode::EndOfStatement { line: *line });
+            Token::EndOfStatement { .. } => {
+                statements.push(current_statement);
+                current_statement = Vec::new();
             },
 
             Token::Integer { value, priority, line } => {
-                nodes.push(SyntaxNode::Int { value: *value, priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Int { value: *value, priority: *priority, line: *line });
             },
 
             Token::Float { value, priority, line } => {
-                nodes.push(SyntaxNode::Float { value: *value, priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Float { value: *value, priority: *priority, line: *line });
             },
 
             Token::String { value, priority, line } => {
-                nodes.push(SyntaxNode::String { value: value.to_string(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::String { value: value.to_string(), priority: *priority, line: *line });
             },
 
             Token::Boolean { value, priority, line } => {
-                nodes.push(SyntaxNode::Boolean { value: *value, priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Boolean { value: *value, priority: *priority, line: *line });
             },
 
             Token::Identifier { value, priority, line } => {
-                nodes.push(SyntaxNode::Identifier { value: value.to_string(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Identifier { value: value.to_string(), priority: *priority, line: *line });
             },
 
             Token::Plus { priority, line } => {
-                nodes.push(SyntaxNode::Add { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Add { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
 
             Token::Minus { priority, line } => {
-                nodes.push(SyntaxNode::Sub { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Sub { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
 
             Token::Star { priority, line } => {
-                nodes.push(SyntaxNode::Mul { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Mul { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Slash { priority, line } => {
-                nodes.push(SyntaxNode::Div { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Div { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Modulo { priority, line } => {
-                nodes.push(SyntaxNode::Mod { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Mod { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Equal { priority, line } => {
-                nodes.push(SyntaxNode::Assign { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Assign { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Not { priority, line } => {
-                nodes.push(SyntaxNode::Not { a: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Not { a: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Less { priority, line } => {
-                nodes.push(SyntaxNode::Less { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Less { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Greater { priority, line } => {
-                nodes.push(SyntaxNode::Greater { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Greater { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::OpenParen { priority, line } => {
@@ -336,18 +334,40 @@ fn tokens_to_syntax_nodes(tokens: &[Token], script: &str) -> Vec<SyntaxNode> {
                 // Update the index to skip the content of the parentheses
                 i += add_index;
                 // Convert the tokens to syntax nodes recursively
-                let content_nodes = tokens_to_syntax_nodes(contents, script);
-                nodes.push(SyntaxNode::Parenthesis { contents: content_nodes, priority: *priority, line: *line });
+                let mut content_statements = tokens_to_syntax_node_statements(contents, script);
+                if let Some(content_nodes) = content_statements.pop() {
+                    // Parentheses should not contain more than one statement
+                    if !content_statements.is_empty() {
+                        error::too_many_statements_in_parentheses(token.get_line(), script);
+                    }
+                    current_statement.push(SyntaxNode::Parenthesis { contents: content_nodes, priority: *priority, line: *line });
+                }
             },
             
             Token::OpenSquare { priority, line } => {
-                // Extract the content of the list
-                let (contents, add_index) = extract_list_content(token, &tokens[i + 1..], script);
-                // Update the index to skip the content of the list
-                i += add_index;
-                // Convert the tokens to syntax nodes recursively
-                let content_nodes = tokens_to_syntax_nodes(contents, script);
-                nodes.push(SyntaxNode::List { elements: content_nodes, priority: *priority, line: *line });
+                // Differentiate between subscript and list
+                
+                if !current_statement.is_empty() && matches!(current_statement.last().unwrap(), SyntaxNode::Identifier { .. }) {
+                    // Subscript
+                    
+                    // TODO
+                } else {
+                    // Extract the content of the list
+                    let (contents, add_index) = extract_list_content(token, &tokens[i + 1..], script);
+                    // Update the index to skip the content of the list
+                    i += add_index;
+                    // Convert the tokens to syntax nodes recursively
+                    let mut content_statements = tokens_to_syntax_node_statements(contents, script);
+                    if let Some(content_nodes) = content_statements.pop() {
+                        // Lists should not contain more than one statement
+                        if !content_statements.is_empty() {
+                            error::too_many_statements_in_square_brackets(token.get_line(), script);
+                        }
+                        current_statement.push(SyntaxNode::List { elements: content_nodes, priority: *priority, line: *line });
+                    }
+                    // The list is empty
+                    current_statement.push(SyntaxNode::List { elements: Vec::new(), priority: *priority, line: *line });
+                }  
             },
             
             Token::OpenBrace { priority, line } => {
@@ -357,100 +377,102 @@ fn tokens_to_syntax_nodes(tokens: &[Token], script: &str) -> Vec<SyntaxNode> {
                 i += add_index;
                 // Convert the tokens to a syntax tree recursively
                 let scope_tree = SyntaxTree::from_tokens(contents, script);
-                nodes.push(SyntaxNode::Scope { priority: *priority, statements: scope_tree, line: *line });
+                current_statement.push(SyntaxNode::Scope { priority: *priority, statements: scope_tree, line: *line });
             },
             
             Token::PlusEqual { priority, line } => {
-                nodes.push(SyntaxNode::AssignAdd { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignAdd { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
             },
             
             Token::MinusEqual { priority, line } => {
-                nodes.push(SyntaxNode::AssignSub { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignSub { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
             },
             
             Token::StarEquals { priority, line } => {
-                nodes.push(SyntaxNode::AssignMul { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignMul { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
             },
             
             Token::SlashEqual { priority, line } => {
-                nodes.push(SyntaxNode::AssignDiv { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignDiv { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
             },
             
             Token::ModuloEqual { priority, line } => {
-                nodes.push(SyntaxNode::AssignMod { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignMod { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
             },
             
             Token::EqualEqual { priority, line } => {
-                nodes.push(SyntaxNode::Equal { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Equal { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::NotEqual { priority, line } => {
-                nodes.push(SyntaxNode::NotEqual { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::NotEqual { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::LessEqual { priority, line } => {
-                nodes.push(SyntaxNode::LessEqual { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::LessEqual { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::GreaterEqual { priority, line } => {
-                nodes.push(SyntaxNode::GreaterEqual { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::GreaterEqual { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::And { priority, line } => {
-                nodes.push(SyntaxNode::And { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::And { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Or { priority, line } => {
-                nodes.push(SyntaxNode::Or { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Or { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Fun { priority, line } => {
-                nodes.push(SyntaxNode::Fun { priority: *priority, name: String::new(), args: Vec::new(), body: placeholder(), line: *line });
+                current_statement.push(SyntaxNode::Fun { priority: *priority, name: String::new(), args: Vec::new(), body: placeholder(), line: *line });
             },
             
             Token::Return { priority, line } => {
-                nodes.push(SyntaxNode::Return { value: None, priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Return { value: None, priority: *priority, line: *line });
             },
             
             Token::If { priority, line } => {
-                nodes.push(SyntaxNode::If { priority: *priority, condition: placeholder(), body: placeholder(), else_body: None, line: *line });
+                current_statement.push(SyntaxNode::If { priority: *priority, condition: placeholder(), body: placeholder(), else_body: None, line: *line });
             },
             
             Token::Else { priority, line } => {
-                nodes.push(SyntaxNode::Else { priority: *priority, body: placeholder(), line: *line });
+                current_statement.push(SyntaxNode::Else { priority: *priority, body: placeholder(), line: *line });
             },
             
             Token::While { priority, line } => {
-                nodes.push(SyntaxNode::While { priority: *priority, condition: placeholder(), body: placeholder(), line: *line });
+                current_statement.push(SyntaxNode::While { priority: *priority, condition: placeholder(), body: placeholder(), line: *line });
             },
             
             Token::For { priority, line } => {
-                nodes.push(SyntaxNode::For { priority: *priority, variable: String::new(), iterable: placeholder(), body: placeholder(), line: *line });
+                current_statement.push(SyntaxNode::For { priority: *priority, variable: String::new(), iterable: placeholder(), body: placeholder(), line: *line });
             },
             
             Token::In { priority, line } => {
-                nodes.push(SyntaxNode::In { priority: *priority, iterable: placeholder(), line: *line });
+                current_statement.push(SyntaxNode::In { priority: *priority, iterable: placeholder(), line: *line });
             },
             
             Token::Break { priority, line } => {
-                nodes.push(SyntaxNode::Break { priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Break { priority: *priority, line: *line });
             },
             
             Token::Continue { priority, line } => {
-                nodes.push(SyntaxNode::Continue { priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Continue { priority: *priority, line: *line });
             },
 
             _ => error::invalid_token_to_syntax_node_conversion(&token, script),
         }
     }
 
-    nodes
+    statements
 }
 
 
 /// Satisfy the requirements of each syntax node
-/// Transforms the one-dimensional vector into a tree
-fn parse_syntax_nodes(nodes: &mut Vec<SyntaxNode>, script: &str) {
+/// Transforms the one-dimensional vector into a tree with a single root node
+/// Throws an error if the root node is not unique
+/// Returns the root node
+fn parse_syntax_nodes(nodes: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode {
     todo!()
 }
 
@@ -458,8 +480,9 @@ fn parse_syntax_nodes(nodes: &mut Vec<SyntaxNode>, script: &str) {
 impl SyntaxTree {
 
     pub fn from_tokens(tokens: &[Token], script: &str) -> SyntaxTree {
-        let mut statements = tokens_to_syntax_nodes(tokens, script);
-        parse_syntax_nodes(&mut statements, script);
+        let mut raw_statements = tokens_to_syntax_node_statements(tokens, script);
+
+        let statements = raw_statements.iter_mut().map(|statement| parse_syntax_nodes(statement, script)).collect();
 
         SyntaxTree { statements }
     }
