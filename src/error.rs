@@ -1,4 +1,4 @@
-use crate::token::Token;
+use crate::{token::Token, syntax_tree::SyntaxNode};
 
 
 fn error(message: String) -> ! {
@@ -17,7 +17,7 @@ pub fn invalid_escape_sequence(c: char, line: usize, script: &str, hint: &str) -
 }
 
 
-pub fn expected_operand(line: usize, operator: &Token, script: &str) -> ! {
+pub fn expected_operand(line: usize, operator: &str, script: &str) -> ! {
     error(format!("Expected operand for operator '{}' at line {}:\n{}\n\n", operator, line, script));
 }
 
@@ -49,5 +49,10 @@ pub fn too_many_statements_in_parentheses(line: usize, script: &str) -> ! {
 
 pub fn too_many_statements_in_square_brackets(line: usize, script: &str) -> ! {
     error(format!("Square brackets can only contain one statement at line {}:\n{}\n\n", line, script));
+}
+
+
+pub fn empty_subscription(line: usize, script: &str) -> ! {
+    error(format!("Missing index for subscript operator at line {}:\n{}\n\n", line, script));
 }
 

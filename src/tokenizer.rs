@@ -25,6 +25,7 @@ pub fn tokenize(script: &String) -> TokenList {
     let mut current_token: Option<Token> = None;
     let mut current_priority: usize = 0;
     let mut string_escape: bool = false;
+    let mut grouping_depth: usize = 0;
 
     for ch in script.chars() {
 
@@ -269,17 +270,21 @@ pub fn tokenize(script: &String) -> TokenList {
             '(' => {
                 current_token = Some(Token::OpenParen { priority: current_priority, line });
                 current_priority += GROUPING_PRIORITY;
+                grouping_depth += 1;
             },
             ')' => {
                 current_priority -= GROUPING_PRIORITY;
+                grouping_depth -= 1;
                 current_token = Some(Token::CloseParen { priority: current_priority, line });
             },
             '[' => {
                 current_token = Some(Token::OpenSquare { priority: current_priority, line });
                 current_priority += GROUPING_PRIORITY;
+                grouping_depth += 1;
             },
             ']' => {
                 current_priority -= GROUPING_PRIORITY;
+                grouping_depth -= 1;
                 current_token = Some(Token::CloseSquare { priority: current_priority, line });
             },
             '{' => {
@@ -299,7 +304,10 @@ pub fn tokenize(script: &String) -> TokenList {
                     tokens.push(token);
                     current_token = None;
                 }
-                tokens.push(Token::EndOfStatement { priority: current_priority, line });
+                // The statement isn't finished if the newline is found inside a grouping token
+                if grouping_depth == 0 {
+                    tokens.push(Token::EndOfStatement { priority: current_priority, line });
+                }
             },
 
             // Ignored characters
