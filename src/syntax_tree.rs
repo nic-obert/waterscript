@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::token::Token;
 use crate::error;
 
@@ -7,27 +9,27 @@ use crate::error;
 pub enum SyntaxNode {
 
     // Operators
-    Add { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Sub { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Mul { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Div { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Mod { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Assign { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
-    AssignAdd { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
-    AssignSub { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
-    AssignMul { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
-    AssignDiv { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
-    AssignMod { priority: usize, lvalue: Box<SyntaxNode>, rvalue: Box<SyntaxNode>, line: usize },
-    And { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Or { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Not { priority: usize, a: Box<SyntaxNode>, line: usize },
-    Less { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Greater { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    LessEqual { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    GreaterEqual { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Equal { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    NotEqual { priority: usize, a: Box<SyntaxNode>, b: Box<SyntaxNode>, line: usize },
-    Subscript { priority: usize, target: Box<SyntaxNode>, index: Box<SyntaxNode>, line: usize },
+    Add { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Sub { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Mul { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Div { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Mod { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Assign { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    AssignAdd { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    AssignSub { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    AssignMul { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    AssignDiv { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    AssignMod { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    And { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Or { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Not { priority: usize, operand: Box<SyntaxNode>, line: usize },
+    Less { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Greater { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    LessEqual { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    GreaterEqual { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Equal { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    NotEqual { priority: usize, left: Box<SyntaxNode>, right: Box<SyntaxNode>, line: usize },
+    Subscript { priority: usize, iterable: Box<SyntaxNode>, index: Box<SyntaxNode>, line: usize },
     Call { priority: usize, function: Box<SyntaxNode>, arguments: Vec<SyntaxNode>, line: usize },
 
     // Literals & Identifiers
@@ -161,48 +163,52 @@ impl SyntaxNode {
     }
 
 
-    fn set_priority(&mut self, new_priority: usize) {
-        match self {
-            SyntaxNode::Add { priority, .. } => *priority = new_priority,
-            SyntaxNode::Sub { priority, .. } => *priority = new_priority,
-            SyntaxNode::Mul { priority, .. } => *priority = new_priority,
-            SyntaxNode::Div { priority, .. } => *priority = new_priority,
-            SyntaxNode::Mod { priority, .. } => *priority = new_priority,
-            SyntaxNode::Assign { priority, .. } => *priority = new_priority,
-            SyntaxNode::AssignAdd { priority, .. } => *priority = new_priority,
-            SyntaxNode::AssignSub { priority, .. } => *priority = new_priority,
-            SyntaxNode::AssignMul { priority, .. } => *priority = new_priority,
-            SyntaxNode::AssignDiv { priority, .. } => *priority = new_priority,
-            SyntaxNode::AssignMod { priority, .. } => *priority = new_priority,
-            SyntaxNode::And { priority, .. } => *priority = new_priority,
-            SyntaxNode::Or { priority, .. } => *priority = new_priority,
-            SyntaxNode::Not { priority, .. } => *priority = new_priority,
-            SyntaxNode::Less { priority, .. } => *priority = new_priority,
-            SyntaxNode::Greater { priority, .. } => *priority = new_priority,
-            SyntaxNode::LessEqual { priority, .. } => *priority = new_priority,
-            SyntaxNode::GreaterEqual { priority, .. } => *priority = new_priority,
-            SyntaxNode::Equal { priority, .. } => *priority = new_priority,
-            SyntaxNode::NotEqual { priority, .. } => *priority = new_priority,
-            SyntaxNode::Int { priority, .. } => *priority = new_priority,
-            SyntaxNode::Float { priority, .. } => *priority = new_priority,
-            SyntaxNode::String { priority, .. } => *priority = new_priority,
-            SyntaxNode::Boolean { priority, .. } => *priority = new_priority,
-            SyntaxNode::List { priority, .. } => *priority = new_priority,
-            SyntaxNode::Identifier { priority, .. } => *priority = new_priority,
-            SyntaxNode::Fun { priority, .. } => *priority = new_priority,
-            SyntaxNode::Return { priority, .. } => *priority = new_priority,
-            SyntaxNode::If { priority, .. } => *priority = new_priority,
-            SyntaxNode::Else { priority, .. } => *priority = new_priority,
-            SyntaxNode::While { priority, .. } => *priority = new_priority,
-            SyntaxNode::For { priority, .. } => *priority = new_priority,
-            SyntaxNode::In { priority, .. } => *priority = new_priority,
-            SyntaxNode::Break { priority, .. } => *priority = new_priority,
-            SyntaxNode::Continue { priority, .. } => *priority = new_priority,
-            SyntaxNode::Scope { priority, .. } => *priority = new_priority,
-            SyntaxNode::Placeholder => panic!("Placeholder node has no priority"),
-            SyntaxNode::Parenthesis { priority, .. } => *priority = new_priority,
-            SyntaxNode::Subscript { priority, .. } => *priority = new_priority,
-            SyntaxNode::Call { priority, .. } => *priority = new_priority,
+    fn clear_priority(&self) {
+        unsafe {
+            let this = self as *const SyntaxNode as *mut SyntaxNode;
+        
+            match &mut *this {
+                SyntaxNode::Add { priority, .. } => *priority = 0,
+                SyntaxNode::Sub { priority, .. } => *priority = 0,
+                SyntaxNode::Mul { priority, .. } => *priority = 0,
+                SyntaxNode::Div { priority, .. } => *priority = 0,
+                SyntaxNode::Mod { priority, .. } => *priority = 0,
+                SyntaxNode::Assign { priority, .. } => *priority = 0,
+                SyntaxNode::AssignAdd { priority, .. } => *priority = 0,
+                SyntaxNode::AssignSub { priority, .. } => *priority = 0,
+                SyntaxNode::AssignMul { priority, .. } => *priority = 0,
+                SyntaxNode::AssignDiv { priority, .. } => *priority = 0,
+                SyntaxNode::AssignMod { priority, .. } => *priority = 0,
+                SyntaxNode::And { priority, .. } => *priority = 0,
+                SyntaxNode::Or { priority, .. } => *priority = 0,
+                SyntaxNode::Not { priority, .. } => *priority = 0,
+                SyntaxNode::Less { priority, .. } => *priority = 0,
+                SyntaxNode::Greater { priority, .. } => *priority = 0,
+                SyntaxNode::LessEqual { priority, .. } => *priority = 0,
+                SyntaxNode::GreaterEqual { priority, .. } => *priority = 0,
+                SyntaxNode::Equal { priority, .. } => *priority = 0,
+                SyntaxNode::NotEqual { priority, .. } => *priority = 0,
+                SyntaxNode::Int { priority, .. } => *priority = 0,
+                SyntaxNode::Float { priority, .. } => *priority = 0,
+                SyntaxNode::String { priority, .. } => *priority = 0,
+                SyntaxNode::Boolean { priority, .. } => *priority = 0,
+                SyntaxNode::List { priority, .. } => *priority = 0,
+                SyntaxNode::Identifier { priority, .. } => *priority = 0,
+                SyntaxNode::Fun { priority, .. } => *priority = 0,
+                SyntaxNode::Return { priority, .. } => *priority = 0,
+                SyntaxNode::If { priority, .. } => *priority = 0,
+                SyntaxNode::Else { priority, .. } => *priority = 0,
+                SyntaxNode::While { priority, .. } => *priority = 0,
+                SyntaxNode::For { priority, .. } => *priority = 0,
+                SyntaxNode::In { priority, .. } => *priority = 0,
+                SyntaxNode::Break { priority, .. } => *priority = 0,
+                SyntaxNode::Continue { priority, .. } => *priority = 0,
+                SyntaxNode::Scope { priority, .. } => *priority = 0,    
+                SyntaxNode::Placeholder => panic!("Placeholder node has no priority"),
+                SyntaxNode::Parenthesis { priority, .. } => *priority = 0,
+                SyntaxNode::Subscript { priority, .. } => *priority = 0,
+                SyntaxNode::Call { priority, .. } => *priority = 0,
+            }
         }
     }
 
@@ -276,9 +282,12 @@ fn get_highest_priority(nodes: &[SyntaxNode]) -> (usize, usize) {
 }
 
 
-fn extract_node(nodes: &mut Vec<SyntaxNode>, index: usize) -> Option<SyntaxNode> {
+fn extract_node(nodes: &Vec<SyntaxNode>, index: usize) -> Option<SyntaxNode> {
     if index < nodes.len() {
-        Some(nodes.remove(index))
+        unsafe {
+            let nodes_mut = nodes as *const Vec<SyntaxNode> as *mut Vec<SyntaxNode>;
+            Some((*nodes_mut).remove(index))
+        }
     } else {
         None
     }
@@ -388,39 +397,39 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
             },
 
             Token::Plus { priority, line } => {
-                current_statement.push(SyntaxNode::Add { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Add { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
 
             Token::Minus { priority, line } => {
-                current_statement.push(SyntaxNode::Sub { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Sub { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
 
             Token::Star { priority, line } => {
-                current_statement.push(SyntaxNode::Mul { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Mul { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Slash { priority, line } => {
-                current_statement.push(SyntaxNode::Div { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Div { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Modulo { priority, line } => {
-                current_statement.push(SyntaxNode::Mod { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Mod { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Equal { priority, line } => {
-                current_statement.push(SyntaxNode::Assign { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Assign { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Not { priority, line } => {
-                current_statement.push(SyntaxNode::Not { a: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Not { operand: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Less { priority, line } => {
-                current_statement.push(SyntaxNode::Less { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Less { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Greater { priority, line } => {
-                current_statement.push(SyntaxNode::Greater { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Greater { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::OpenParen { priority, line } => {
@@ -470,47 +479,47 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
             },
             
             Token::PlusEqual { priority, line } => {
-                current_statement.push(SyntaxNode::AssignAdd { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignAdd { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::MinusEqual { priority, line } => {
-                current_statement.push(SyntaxNode::AssignSub { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignSub { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::StarEquals { priority, line } => {
-                current_statement.push(SyntaxNode::AssignMul { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignMul { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::SlashEqual { priority, line } => {
-                current_statement.push(SyntaxNode::AssignDiv { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignDiv { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::ModuloEqual { priority, line } => {
-                current_statement.push(SyntaxNode::AssignMod { lvalue: placeholder(), rvalue: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::AssignMod { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::EqualEqual { priority, line } => {
-                current_statement.push(SyntaxNode::Equal { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Equal { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::NotEqual { priority, line } => {
-                current_statement.push(SyntaxNode::NotEqual { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::NotEqual { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::LessEqual { priority, line } => {
-                current_statement.push(SyntaxNode::LessEqual { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::LessEqual { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::GreaterEqual { priority, line } => {
-                current_statement.push(SyntaxNode::GreaterEqual { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::GreaterEqual { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::And { priority, line } => {
-                current_statement.push(SyntaxNode::And { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::And { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Or { priority, line } => {
-                current_statement.push(SyntaxNode::Or { a: placeholder(), b: placeholder(), priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Or { left: placeholder(), right: placeholder(), priority: *priority, line: *line });
             },
             
             Token::Fun { priority, line } => {
@@ -557,6 +566,27 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
 }
 
 
+fn binary_extract(statement: &Vec<SyntaxNode>, operator_index: usize, operator: &SyntaxNode, script: &str) -> (SyntaxNode, SyntaxNode) {
+    let right = unary_extract_right(statement, operator_index, operator, script);
+    let left = unary_extract_left(statement, operator_index, operator, script);
+    (left, right)
+}
+
+
+fn unary_extract_left(statement: &Vec<SyntaxNode>, operator_index: usize, operator: &SyntaxNode, script: &str) -> SyntaxNode {
+    extract_node(statement, operator_index - 1).unwrap_or_else(
+        || error::expected_operand(operator.get_line(), operator.get_name(), script)
+    )
+}
+
+
+fn unary_extract_right(statement: &Vec<SyntaxNode>, operator_index: usize, operator: &SyntaxNode, script: &str) -> SyntaxNode {
+    extract_node(statement, operator_index + 1).unwrap_or_else(
+        || error::expected_operand(operator.get_line(), operator.get_name(), script)
+    )
+}
+
+
 /// Satisfy the requirements of each syntax node
 /// Transforms the one-dimensional vector into a tree with a single root node
 /// Throws an error if the root node is not unique
@@ -569,63 +599,67 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
             // The statement is parsed completely
             break;
         }
-        let node = &mut statement[index];
+        let old_node = &statement[index];
+        let mut new_node = old_node.to_owned();
         // Set the priority to 0 to signify that the node has been parsed
-        node.set_priority(0);
+        new_node.clear_priority();
 
-        match node {
-            SyntaxNode::Add { priority, a, b, line } => {
-                let right = extract_node(statement, index + 1).unwrap_or_else(
-                    || error::expected_operand(*line, node.get_name(), script)
-                );
-                let left = extract_node(statement, index - 1).unwrap_or_else(
-                    || error::expected_operand(*line, node.get_name(), script)
-                );
-
-                
+        match &mut new_node {
+            // Binary centered operators
+            SyntaxNode::Add { left, right, .. } |
+            SyntaxNode::Sub { left, right, .. } |
+            SyntaxNode::Mul { left, right, .. } |
+            SyntaxNode::Div { left, right, .. } |
+            SyntaxNode::Mod { left, right, .. } |
+            SyntaxNode::Assign { left, right, .. } |
+            SyntaxNode::AssignAdd { left, right, .. } |
+            SyntaxNode::AssignSub { left, right, .. } |
+            SyntaxNode::AssignMul { left, right, .. } |
+            SyntaxNode::AssignDiv { left, right, .. } |
+            SyntaxNode::AssignMod { left, right, .. } |
+            SyntaxNode::And { left, right, .. } |
+            SyntaxNode::Or { left, right, .. } |
+            SyntaxNode::Equal { left, right, .. } |
+            SyntaxNode::NotEqual { left, right, .. } |
+            SyntaxNode::LessEqual { left, right, .. } |
+            SyntaxNode::GreaterEqual { left, right, .. } |
+            SyntaxNode::Greater { left, right, .. } |
+            SyntaxNode::Less { left, right, .. }
+            => {
+                (**left, **right) = binary_extract(statement, index, old_node, script);
+                statement[index - 1] = new_node;
             },
 
-            SyntaxNode::Sub { priority, a, b, line } => todo!(),
-            SyntaxNode::Mul { priority, a, b, line } => todo!(),
-            SyntaxNode::Div { priority, a, b, line } => todo!(),
-            SyntaxNode::Mod { priority, a, b, line } => todo!(),
-            SyntaxNode::Assign { priority, lvalue, rvalue, line } => todo!(),
-            SyntaxNode::AssignAdd { priority, lvalue, rvalue, line } => todo!(),
-            SyntaxNode::AssignSub { priority, lvalue, rvalue, line } => todo!(),
-            SyntaxNode::AssignMul { priority, lvalue, rvalue, line } => todo!(),
-            SyntaxNode::AssignDiv { priority, lvalue, rvalue, line } => todo!(),
-            SyntaxNode::AssignMod { priority, lvalue, rvalue, line } => todo!(),
-            SyntaxNode::And { priority, a, b, line } => todo!(),
-            SyntaxNode::Or { priority, a, b, line } => todo!(),
-            SyntaxNode::Not { priority, a, line } => todo!(),
-            SyntaxNode::Less { priority, a, b, line } => todo!(),
-            SyntaxNode::Greater { priority, a, b, line } => todo!(),
-            SyntaxNode::LessEqual { priority, a, b, line } => todo!(),
-            SyntaxNode::GreaterEqual { priority, a, b, line } => todo!(),
-            SyntaxNode::Equal { priority, a, b, line } => todo!(),
-            SyntaxNode::NotEqual { priority, a, b, line } => todo!(),
-            SyntaxNode::Subscript { priority, target, index, line } => todo!(),
-            SyntaxNode::Call { priority, function, arguments, line } => todo!(),
-            SyntaxNode::Int { priority, value, line } => todo!(),
-            SyntaxNode::Float { priority, value, line } => todo!(),
-            SyntaxNode::String { priority, value, line } => todo!(),
-            SyntaxNode::Boolean { priority, value, line } => todo!(),
+            // Unary operators with right operand
+            SyntaxNode::Not { operand, .. } |
+            SyntaxNode::Else { body: operand, .. } |
+            SyntaxNode::In { iterable: operand, .. }
+            => {
+                **operand = unary_extract_right(statement, index, old_node, script);
+                statement[index] = new_node;
+            },
+            
+            // Unary operators with left operand
+            SyntaxNode::Call { function, arguments, .. } => todo!(),
+            
+            // No operands
+            SyntaxNode::Break { .. } |
+            SyntaxNode::Continue { .. }
+            => todo!(),
+
+            SyntaxNode::Return { priority, value, line } => todo!(),
+            SyntaxNode::Subscript { priority, iterable: target, index, line } => todo!(),
             SyntaxNode::List { priority, elements, line } => todo!(),
             SyntaxNode::Identifier { priority, value, line } => todo!(),
             SyntaxNode::Fun { priority, name, args, body, line } => todo!(),
-            SyntaxNode::Return { priority, value, line } => todo!(),
             SyntaxNode::If { priority, condition, body, else_body, line } => todo!(),
-            SyntaxNode::Else { priority, body, line } => todo!(),
             SyntaxNode::While { priority, condition, body, line } => todo!(),
             SyntaxNode::For { priority, variable, iterable, body, line } => todo!(),
-            SyntaxNode::In { priority, iterable, line } => todo!(),
-            SyntaxNode::Break { priority, line } => todo!(),
-            SyntaxNode::Continue { priority, line } => todo!(),
             SyntaxNode::Scope { priority, statements, line } => todo!(),
             SyntaxNode::Parenthesis { priority, contents, line } => todo!(),
-            SyntaxNode::Placeholder => todo!(),
-        }
 
+            _ => panic!("Invalid syntax node during parsing: {}", new_node.get_name())
+        }
     }
 
     todo!()

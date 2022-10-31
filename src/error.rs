@@ -1,4 +1,4 @@
-use crate::{token::Token, syntax_tree::SyntaxNode};
+use crate::token::Token;
 
 
 fn error(message: String) -> ! {
