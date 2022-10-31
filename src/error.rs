@@ -56,3 +56,8 @@ pub fn empty_subscription(line: usize, script: &str) -> ! {
     error(format!("Missing index for subscript operator at line {}:\n{}\n\n", line, script));
 }
 
+
+pub fn empty_list_element(line: usize, script: &str) -> ! {
+    error(format!("Missing element for list at line {}:\n{}\n\nYou probably have an unwanted comma.", line, script));
+}
+

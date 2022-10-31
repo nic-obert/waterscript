@@ -53,7 +53,7 @@ pub enum SyntaxNode {
 
     // Grouping
     Scope { priority: usize, statements: SyntaxTree, line: usize },
-    Parenthesis { priority: usize, contents: Vec<SyntaxNode>, line: usize },
+    Parenthesis { priority: usize, child: Box<SyntaxNode>, line: usize },
 
     // Misc
     Placeholder,
@@ -319,7 +319,7 @@ fn extract_parentheses_content<'a>(open_parenthesis: &Token, tokens: &'a [Token]
 /// To be called after an open bracket token
 /// Returns the extracted tokens and the index of the closing bracket.
 /// The closing bracket is not included in the returned tokens.
-fn extract_square_bracket_content<'a>(open_list: &Token, tokens: &'a [Token], script: &str) -> (&'a [Token], usize) {
+fn extract_square_bracket_content<'a>(open_bracket: &Token, tokens: &'a [Token], script: &str) -> (&'a [Token], usize) {
     let mut depth: usize = 1;
 
     for (index, token) in tokens.iter().enumerate() {
@@ -334,7 +334,7 @@ fn extract_square_bracket_content<'a>(open_list: &Token, tokens: &'a [Token], sc
         }
     }
 
-    error::unmatched_square_bracket(open_list.get_line(), script)
+    error::unmatched_square_bracket(open_bracket.get_line(), script)
 }
 
 
@@ -439,33 +439,85 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                 i += add_index;
                 // Convert the tokens to syntax nodes recursively
                 let mut content_statements = tokens_to_syntax_node_statements(contents, script);
-                if let Some(content_nodes) = content_statements.pop() {
+                if let Some(mut content_nodes) = content_statements.pop() {
                     // Parentheses should not contain more than one statement
                     if !content_statements.is_empty() {
                         error::too_many_statements_in_parentheses(token.get_line(), script);
                     }
-                    current_statement.push(SyntaxNode::Parenthesis { contents: content_nodes, priority: *priority, line: *line });
+                    let child = parse_statement(&mut content_nodes, script);
+                    current_statement.push(SyntaxNode::Parenthesis { child: Box::new(child), priority: *priority, line: *line });
                 }
             },
             
             Token::OpenSquare { priority, line } => {
-                // The differentiation between lists and subscripting is done later
-                // Extract the content of the list
+                // Extract the content of the square brackets
                 let (contents, add_index) = extract_square_bracket_content(token, &tokens[i + 1..], script);
-                // Update the index to skip the content of the list
+                // Update the index to skip the content tokens
                 i += add_index;
-                // Convert the tokens to syntax nodes recursively
-                let mut content_statements = tokens_to_syntax_node_statements(contents, script);
-                if let Some(content_nodes) = content_statements.pop() {
-                    // Lists should not contain more than one statement
-                    if !content_statements.is_empty() {
-                        error::too_many_statements_in_square_brackets(token.get_line(), script);
+
+                // Differentiate between a literal list and a subscript operator
+                if let Some(prev_token) = tokens.get(i - 1) {
+                    if prev_token.is_self_stable() {
+                        // This is a subscript operator
+                        
+                        // Convert the tokens to syntax nodes recursively
+                        let mut content_statements = tokens_to_syntax_node_statements(contents, script);
+                        if let Some(mut content_nodes) = content_statements.pop() {
+                            // Subscription should not contain more than one statement
+                            if !content_statements.is_empty() {
+                                error::too_many_statements_in_square_brackets(token.get_line(), script);
+                            }
+
+                            let child = parse_statement(&mut content_nodes, script);
+                            current_statement.push(SyntaxNode::Subscript { iterable: placeholder(), index: Box::new(child), priority: *priority, line: *line });
+                            
+                            // Continue to skip the literal list branch
+                            continue;
+                        }
+
+                        error::empty_subscription(*line, script);
                     }
-                    current_statement.push(SyntaxNode::List { elements: content_nodes, priority: *priority, line: *line });
                 }
-                // The list is empty
-                current_statement.push(SyntaxNode::List { elements: Vec::new(), priority: *priority, line: *line });
-            
+
+                // This is a literal list
+
+                // Split the content tokens on commas
+                let mut token_elements: Vec<&[Token]> = Vec::new();
+                let mut last_comma_index: usize = 0;
+                let mut current_index: usize = 0;
+
+                while current_index < contents.len() {
+                    let token = &contents[current_index];
+
+                    if matches!(token, Token::Comma { .. }) {
+                        token_elements.push(&contents[last_comma_index..current_index]);
+                        last_comma_index = current_index + 1;
+                    }
+
+                    current_index += 1;
+                }
+
+                if last_comma_index < contents.len() {
+                    token_elements.push(&contents[last_comma_index..]);
+                } 
+
+                // Convert each token list to a syntax node list and parse it recursively
+                let elements: Vec<SyntaxNode> = token_elements.iter().map(
+                    |tokens| {
+                        let mut statements = tokens_to_syntax_node_statements(tokens, script);
+                        if let Some(mut nodes) = statements.pop() {
+                            // Literal lists should not contain more than one statement
+                            if !statements.is_empty() {
+                                error::too_many_statements_in_square_brackets(token.get_line(), script);
+                            }
+                            parse_statement(&mut nodes, script)
+                        } else {
+                            error::empty_list_element(*line, script);
+                        }
+                    }
+                ).collect();
+
+                current_statement.push(SyntaxNode::List { elements, priority: *priority, line: *line });
             },
             
             Token::OpenBrace { priority, line } => {
@@ -560,6 +612,8 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
 
             _ => error::invalid_token_to_syntax_node_conversion(&token, script),
         }
+
+        // Code below this point may be unreachable
     }
 
     statements
@@ -656,7 +710,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
             SyntaxNode::While { priority, condition, body, line } => todo!(),
             SyntaxNode::For { priority, variable, iterable, body, line } => todo!(),
             SyntaxNode::Scope { priority, statements, line } => todo!(),
-            SyntaxNode::Parenthesis { priority, contents, line } => todo!(),
+            SyntaxNode::Parenthesis { priority, child, line } => todo!(),
 
             _ => panic!("Invalid syntax node during parsing: {}", new_node.get_name())
         }

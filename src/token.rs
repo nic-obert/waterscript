@@ -3,7 +3,6 @@
 #[derive(Debug)]
 pub enum Token {
 
-    Comment { line: usize },
     EndOfStatement { priority: usize, line: usize },
 
     Numeric { value: String, line: usize },
@@ -64,66 +63,8 @@ pub enum Token {
 
 impl Token {
 
-    pub fn get_priority(&self) -> usize {
-        match self {
-            Token::Comment { .. } => 0,
-            Token::EndOfStatement { .. } => 0,
-
-            Token::Numeric { .. } => 0,
-            Token::Integer { priority, .. } => *priority,
-            Token::Float { priority, .. } => *priority,
-            Token::String { priority, .. } => *priority,
-            Token::Boolean { priority, .. } => *priority,
-            Token::Identifier { priority, .. } => *priority,
-
-            Token::Plus { priority, .. } => *priority,
-            Token::Minus { priority, .. } => *priority,
-            Token::Star { priority, .. } => *priority,
-            Token::Slash { priority, .. } => *priority,
-            Token::Modulo { priority, .. } => *priority,
-            Token::Equal { priority, .. } => *priority,
-            Token::Not { priority, .. } => *priority,
-            Token::Less { priority, .. } => *priority,
-            Token::Greater { priority, .. } => *priority,
-            Token::Ampersand { priority, .. } => *priority,
-            Token::Pipe { priority, .. } => *priority,
-            Token::Comma { priority, .. } => *priority,
-
-            Token::OpenParen { priority, .. } => *priority,
-            Token::CloseParen { priority, .. } => *priority,
-            Token::OpenBrace { priority, .. } => *priority,
-            Token::CloseBrace { priority, .. } => *priority,
-            Token::OpenSquare { priority, .. } => *priority,
-            Token::CloseSquare { priority, .. } => *priority,
-            
-            Token::PlusEqual { priority, .. } => *priority,
-            Token::MinusEqual { priority, .. } => *priority,
-            Token::StarEquals { priority, .. } => *priority,
-            Token::SlashEqual { priority, .. } => *priority,
-            Token::ModuloEqual { priority, .. } => *priority,
-            Token::EqualEqual { priority, .. } => *priority,
-            Token::NotEqual { priority, .. } => *priority,
-            Token::LessEqual { priority, .. } => *priority,
-            Token::GreaterEqual { priority, .. } => *priority,
-            Token::And { priority, .. } => *priority,
-            Token::Or { priority, .. } => *priority,
-
-            Token::Fun { priority, .. } => *priority,
-            Token::Return { priority, .. } => *priority,
-            Token::If { priority, .. } => *priority,
-            Token::Else { priority, .. } => *priority,
-            Token::While { priority, .. } => *priority,
-            Token::For { priority, .. } => *priority,
-            Token::In { priority, .. } => *priority,
-            Token::Break { priority, .. } => *priority,
-            Token::Continue { priority, .. } => *priority,
-        }
-    }
-
-
     pub fn get_line(&self) -> usize {
         match self {
-            Token::Comment { line } => *line,
             Token::EndOfStatement { line, .. } => *line,
 
             Token::Numeric { line, .. } => *line,
@@ -177,6 +118,58 @@ impl Token {
         }
     }
 
+
+    /// Whether the token needs other following tokens to be satisfied
+    pub fn is_self_stable(&self) -> bool {
+        match self {
+            Token::Identifier { .. } |
+            Token::Integer { .. } |
+            Token::Float { .. } |
+            Token::String { .. } |
+            Token::Boolean { .. } |
+            Token::CloseParen { .. } |
+            Token::CloseBrace { .. } |
+            Token::CloseSquare { .. } |
+            Token::Break { .. } |
+            Token::Continue { .. } 
+            => true,
+            
+            Token::Plus { .. } |
+            Token::Minus { .. } |
+            Token::Star { .. } |
+            Token::Slash { .. } |
+            Token::Modulo { .. } |
+            Token::Not { .. } |
+            Token::Less { .. } |
+            Token::Greater { .. } |
+            Token::Fun { .. } |
+            Token::OpenParen { .. } |
+            Token::OpenBrace { .. } |
+            Token::OpenSquare { .. } |            
+            Token::Comma { .. } |
+            Token::PlusEqual { .. } |
+            Token::MinusEqual { .. } |
+            Token::StarEquals { .. } |
+            Token::SlashEqual { .. } |
+            Token::ModuloEqual { .. } |
+            Token::EqualEqual { .. } |
+            Token::NotEqual { .. } |
+            Token::LessEqual { .. } |
+            Token::GreaterEqual { .. } |
+            Token::And { .. } |
+            Token::Or { .. } |
+            Token::Return { .. } |
+            Token::If { .. } |
+            Token::Else { .. } |
+            Token::While { .. } |
+            Token::In { .. } |
+            Token::For { .. }
+            => false,
+
+            _ => unimplemented!("is_self_stable() not implemented for {:?}", self)
+        }
+    }
+
 }
 
 
@@ -184,7 +177,6 @@ impl std::fmt::Display for Token {
 
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Comment { .. } => write!(f, "Comment"),
             Token::EndOfStatement { .. } => write!(f, "EndOfStatement"),
 
             Token::Numeric { value, .. } => write!(f, "Numeric({})", value),
@@ -279,7 +271,6 @@ fn add_variant_priority(token_variant: &mut Token) {
     match token_variant {
 
         // Invalid tokens
-        Token::Comment { .. } => panic!("Comment token should not be added to the token list"),
         Token::Numeric { .. } => panic!("Numeric token should not be added to the token list"),
 
         // Value tokens, need to be evaluated first for operators to use them
@@ -374,6 +365,10 @@ impl TokenList {
 
     pub fn extract_tokens(&mut self) -> Vec<Token> {
         std::mem::take(&mut self.tokens)
+    }
+
+    pub fn last(&self) -> Option<&Token> {
+        self.tokens.last()
     }
 
 }

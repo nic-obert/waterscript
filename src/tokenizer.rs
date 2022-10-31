@@ -26,21 +26,21 @@ pub fn tokenize(script: &String) -> TokenList {
     let mut current_priority: usize = 0;
     let mut string_escape: bool = false;
     let mut grouping_depth: usize = 0;
+    let mut is_comment: bool = false;
 
     for ch in script.chars() {
+
+        if is_comment {
+            // Ignore all characters until the end of the line
+            if ch != '\n' {
+                continue;
+            }
+            is_comment = false;
+        }
 
         if let Some(token) = &mut current_token {
 
             match token {
-
-                Token::Comment { .. } => {
-                    // Ignore all characters until the end of the line
-                    if ch != '\n' {
-                        continue;
-                    }
-
-                    current_token = None;
-                },
 
                 Token::Numeric { value, .. } => {
                     if is_numeric_char(ch) {
@@ -296,7 +296,7 @@ pub fn tokenize(script: &String) -> TokenList {
                 current_token = Some(Token::CloseBrace { priority: current_priority, line });
             },
 
-            '#' => current_token = Some(Token::Comment { line }),
+            '#' => is_comment = true,
 
             '\n' => {
                 line += 1;
@@ -305,7 +305,9 @@ pub fn tokenize(script: &String) -> TokenList {
                     current_token = None;
                 }
                 // The statement isn't finished if the newline is found inside a grouping token
-                if grouping_depth == 0 {
+                // Also, don't push a new EndOFStatement token if the last token is already an EndOfStatement
+                if grouping_depth == 0 &&
+                    !matches!(tokens.last(), Some(Token::EndOfStatement { .. })) {
                     tokens.push(Token::EndOfStatement { priority: current_priority, line });
                 }
             },
