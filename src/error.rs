@@ -61,3 +61,13 @@ pub fn empty_list_element(line: usize, script: &str) -> ! {
     error(format!("Missing element for list at line {}:\n{}\n\nYou probably have an unwanted comma.", line, script));
 }
 
+
+pub fn wrong_operand_type(line: usize, operator: &str, got: &str, expected: &str, script: &str) -> ! {
+    error(format!("Wrong operand type for operator '{}' at line {}:\n{}\n\nExpected {}, got {}.", operator, line, script, expected, got));
+}
+
+
+pub fn invalid_statement(line: usize, script: &str) -> ! {
+    error(format!("Invalid statement at line {}:\n{}\n\n", line, script));
+}
+

@@ -679,7 +679,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
             SyntaxNode::GreaterEqual { left, right, .. } |
             SyntaxNode::Greater { left, right, .. } |
             SyntaxNode::Less { left, right, .. }
-            => {
+             => {
                 (**left, **right) = binary_extract(statement, index, old_node, script);
                 statement[index - 1] = new_node;
             },
@@ -688,35 +688,94 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
             SyntaxNode::Not { operand, .. } |
             SyntaxNode::Else { body: operand, .. } |
             SyntaxNode::In { iterable: operand, .. }
-            => {
+             => {
                 **operand = unary_extract_right(statement, index, old_node, script);
                 statement[index] = new_node;
             },
             
             // Unary operators with left operand
-            SyntaxNode::Call { function, arguments, .. } => todo!(),
+            SyntaxNode::Subscript { iterable: left, .. } |
+            SyntaxNode::Call { function: left, .. }
+             => {
+                **left = unary_extract_left(statement, index, old_node, script);
+                statement[index - 1] = new_node;
+            },
             
-            // No operands
+            // No operands to take
             SyntaxNode::Break { .. } |
+            SyntaxNode::Scope { .. } |
+            SyntaxNode::Parenthesis { .. } |
             SyntaxNode::Continue { .. }
-            => todo!(),
+             => {
+                statement[index] = new_node;
+            },
 
-            SyntaxNode::Return { priority, value, line } => todo!(),
-            SyntaxNode::Subscript { priority, iterable: target, index, line } => todo!(),
-            SyntaxNode::List { priority, elements, line } => todo!(),
-            SyntaxNode::Identifier { priority, value, line } => todo!(),
-            SyntaxNode::Fun { priority, name, args, body, line } => todo!(),
+            // Other
+            SyntaxNode::Return { value, .. } => {
+                if let Some(node) = extract_node(statement, index + 1) {
+                    *value = Some(Box::new(node));
+                }
+                statement[index] = new_node;
+            },
+
+            SyntaxNode::Fun { name, args, body, .. } => {
+                *name = if let Some(node) = extract_node(statement, index + 1) {
+                    if let SyntaxNode::Identifier { value, .. } = node {
+                        value
+                    } else {
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), "Identifier", script);
+                    }
+                } else {
+                    error::expected_operand(old_node.get_line(), old_node.get_name(), script);
+                };
+
+                todo!()
+            },
+
             SyntaxNode::If { priority, condition, body, else_body, line } => todo!(),
-            SyntaxNode::While { priority, condition, body, line } => todo!(),
-            SyntaxNode::For { priority, variable, iterable, body, line } => todo!(),
-            SyntaxNode::Scope { priority, statements, line } => todo!(),
-            SyntaxNode::Parenthesis { priority, child, line } => todo!(),
+            
+            SyntaxNode::While { condition, body, .. } => {
+                *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                ));
+                *body = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                ));
+
+                statement[index] = new_node;
+            },
+            
+            SyntaxNode::For { variable, iterable, body, .. } => {
+                *variable = if let Some(node) = extract_node(statement, index + 1) {
+                    if let SyntaxNode::Identifier { value, .. } = node {
+                        value
+                    } else {
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), "Identifier", script);
+                    }
+                } else {
+                    error::expected_operand(old_node.get_line(), old_node.get_name(), script);
+                };
+
+                *iterable = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                ));
+
+                *body = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                ));
+
+                statement[index] = new_node;
+            },
 
             _ => panic!("Invalid syntax node during parsing: {}", new_node.get_name())
         }
     }
 
-    todo!()
+    if statement.len() == 1 {
+        statement.pop().unwrap()
+    } else {
+        error::invalid_statement(statement[0].get_line(), script);
+    }
 }
 
 
@@ -725,7 +784,9 @@ impl SyntaxTree {
     pub fn from_tokens(tokens: &[Token], script: &str) -> SyntaxTree {
         let mut raw_statements = tokens_to_syntax_node_statements(tokens, script);
 
-        let statements = raw_statements.iter_mut().map(|statement| parse_statement(statement, script)).collect();
+        let statements = raw_statements.iter_mut().map(
+            |statement| parse_statement(statement, script)
+        ).collect();
 
         SyntaxTree { statements }
     }
