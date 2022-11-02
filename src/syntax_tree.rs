@@ -1,5 +1,3 @@
-use core::panic;
-
 use crate::token::Token;
 use crate::error;
 
@@ -41,9 +39,10 @@ pub enum SyntaxNode {
     Identifier { priority: usize, value: String, line: usize },
 
     // Keywords
-    Fun { priority: usize, name: String, args: Vec<String>, body: Box<SyntaxNode>, line: usize },
+    Fun { priority: usize, name: String, params: Vec<String>, body: SyntaxTree, line: usize },
     Return { priority: usize, value: Option<Box<SyntaxNode>>, line: usize },
     If { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_body: Option<Box<SyntaxNode>>, line: usize },
+    Elif { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_body: Option<Box<SyntaxNode>>, line: usize },
     Else { priority: usize, body: Box<SyntaxNode>, line: usize },
     While { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, line: usize },
     For { priority: usize, variable: String, iterable: Box<SyntaxNode>, body: Box<SyntaxNode>, line: usize },
@@ -102,6 +101,7 @@ impl SyntaxNode {
             SyntaxNode::Fun { line, .. } => *line,
             SyntaxNode::Return { line, .. } => *line,
             SyntaxNode::If { line, .. } => *line,
+            SyntaxNode::Elif { line, .. } => *line,
             SyntaxNode::Else { line, .. } => *line,
             SyntaxNode::While { line, .. } => *line,
             SyntaxNode::For { line, .. } => *line,
@@ -148,6 +148,7 @@ impl SyntaxNode {
             SyntaxNode::Fun { priority, .. } => *priority,
             SyntaxNode::Return { priority, .. } => *priority,
             SyntaxNode::If { priority, .. } => *priority,
+            SyntaxNode::Elif { priority, .. } => *priority,
             SyntaxNode::Else { priority, .. } => *priority,
             SyntaxNode::While { priority, .. } => *priority,
             SyntaxNode::For { priority, .. } => *priority,
@@ -197,6 +198,7 @@ impl SyntaxNode {
                 SyntaxNode::Fun { priority, .. } => *priority = 0,
                 SyntaxNode::Return { priority, .. } => *priority = 0,
                 SyntaxNode::If { priority, .. } => *priority = 0,
+                SyntaxNode::Elif { priority, .. } => *priority = 0,
                 SyntaxNode::Else { priority, .. } => *priority = 0,
                 SyntaxNode::While { priority, .. } => *priority = 0,
                 SyntaxNode::For { priority, .. } => *priority = 0,
@@ -244,6 +246,7 @@ impl SyntaxNode {
             SyntaxNode::Fun { .. } => "Fun",
             SyntaxNode::Return { .. } => "Return",
             SyntaxNode::If { .. } => "If",
+            SyntaxNode::Elif { .. } => "Elif",
             SyntaxNode::Else { .. } => "Else",
             SyntaxNode::While { .. } => "While",
             SyntaxNode::For { .. } => "For",
@@ -261,8 +264,8 @@ impl SyntaxNode {
 }
 
 
-/// Represents the statements in the source code.
-#[derive(Clone)]
+/// Represents a list of statements.
+#[derive(Clone, Default)]
 pub struct SyntaxTree {
     statements: Vec<SyntaxNode>,
 }
@@ -360,6 +363,30 @@ fn extract_brace_content<'a>(open_brace: &Token, tokens: &'a [Token], script: &s
 }
 
 
+fn split_on_commas(tokens: &[Token]) -> Vec<&[Token]> {
+    let mut token_elements: Vec<&[Token]> = Vec::new();
+    let mut last_comma_index: usize = 0;
+    let mut current_index: usize = 0;
+
+    while current_index < tokens.len() {
+        let token = &tokens[current_index];
+
+        if matches!(token, Token::Comma { .. }) {
+            token_elements.push(&tokens[last_comma_index..current_index]);
+            last_comma_index = current_index + 1;
+        }
+
+        current_index += 1;
+    }
+
+    if last_comma_index < tokens.len() {
+        token_elements.push(&tokens[last_comma_index..]);
+    } 
+
+    token_elements
+}
+
+
 fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<SyntaxNode>> {
     let mut statements: Vec<Vec<SyntaxNode>> = Vec::new();
     let mut current_statement: Vec<SyntaxNode> = Vec::new();
@@ -437,6 +464,40 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                 let (contents, add_index) = extract_parentheses_content(token, &tokens[i + 1..], script);
                 // Update the index to skip the content of the parentheses
                 i += add_index;
+
+                // Differentiate between function calls and simple parentheses
+                if let Some(prev_token) = tokens.get(i - 1) {
+                    if prev_token.is_self_stable() {
+                        // This is a function call operator
+                        
+                        // Convert the tokens to syntax nodes recursively
+                        let token_elements = split_on_commas(contents);
+                
+                        // Convert each token list to a syntax node list and parse it recursively
+                        let arguments: Vec<SyntaxNode> = token_elements.iter().map(
+                            |tokens| {
+                                let mut statements = tokens_to_syntax_node_statements(tokens, script);
+                                if let Some(mut nodes) = statements.pop() {
+                                    // Function calls should not contain more than one statement
+                                    if !statements.is_empty() {
+                                        error::too_many_statements_in_parentheses(token.get_line(), script);
+                                    }
+                                    parse_statement(&mut nodes, script)
+                                } else {
+                                    error::empty_function_argument(*line, script);
+                                }
+                            }
+                        ).collect();
+                        
+                        current_statement.push(SyntaxNode::Call { priority: *priority, function: placeholder(), arguments, line: *line });
+                        
+                        // Continue to skip the normal parenthesis branch
+                        continue;
+                    }
+                }
+
+                // This is a normal parenthesis
+
                 // Convert the tokens to syntax nodes recursively
                 let mut content_statements = tokens_to_syntax_node_statements(contents, script);
                 if let Some(mut content_nodes) = content_statements.pop() {
@@ -444,8 +505,11 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                     if !content_statements.is_empty() {
                         error::too_many_statements_in_parentheses(token.get_line(), script);
                     }
+
                     let child = parse_statement(&mut content_nodes, script);
                     current_statement.push(SyntaxNode::Parenthesis { child: Box::new(child), priority: *priority, line: *line });
+                } else {
+                    error::empty_parentheses(token.get_line(), script);
                 }
             },
             
@@ -481,26 +545,8 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
 
                 // This is a literal list
 
-                // Split the content tokens on commas
-                let mut token_elements: Vec<&[Token]> = Vec::new();
-                let mut last_comma_index: usize = 0;
-                let mut current_index: usize = 0;
-
-                while current_index < contents.len() {
-                    let token = &contents[current_index];
-
-                    if matches!(token, Token::Comma { .. }) {
-                        token_elements.push(&contents[last_comma_index..current_index]);
-                        last_comma_index = current_index + 1;
-                    }
-
-                    current_index += 1;
-                }
-
-                if last_comma_index < contents.len() {
-                    token_elements.push(&contents[last_comma_index..]);
-                } 
-
+                let token_elements = split_on_commas(contents);
+                
                 // Convert each token list to a syntax node list and parse it recursively
                 let elements: Vec<SyntaxNode> = token_elements.iter().map(
                     |tokens| {
@@ -575,7 +621,7 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
             },
             
             Token::Fun { priority, line } => {
-                current_statement.push(SyntaxNode::Fun { priority: *priority, name: String::new(), args: Vec::new(), body: placeholder(), line: *line });
+                current_statement.push(SyntaxNode::Fun { priority: *priority, name: String::new(), params: Vec::new(), body: Default::default(), line: *line });
             },
             
             Token::Return { priority, line } => {
@@ -584,6 +630,10 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
             
             Token::If { priority, line } => {
                 current_statement.push(SyntaxNode::If { priority: *priority, condition: placeholder(), body: placeholder(), else_body: None, line: *line });
+            },
+
+            Token::Elif { priority, line } => {
+                current_statement.push(SyntaxNode::Elif { priority: *priority, condition: placeholder(), body: placeholder(), else_body: None, line: *line });
             },
             
             Token::Else { priority, line } => {
@@ -718,7 +768,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                 statement[index] = new_node;
             },
 
-            SyntaxNode::Fun { name, args, body, .. } => {
+            SyntaxNode::Fun { name, params, body, .. } => {
                 *name = if let Some(node) = extract_node(statement, index + 1) {
                     if let SyntaxNode::Identifier { value, .. } = node {
                         value
@@ -729,10 +779,46 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     error::expected_operand(old_node.get_line(), old_node.get_name(), script);
                 };
 
-                todo!()
+                *params = if let Some(node) = extract_node(statement, index + 1) {
+                    if let SyntaxNode::Call { arguments, .. } = node {
+                        // Check if the arguments are all identifiers and extrct their string values
+                        let mut param_names: Vec<String> = Vec::new();
+                        param_names.reserve(arguments.len());
+
+                        for arg in arguments {
+                            if let SyntaxNode::Identifier { value, .. } = arg {
+                                param_names.push(value);
+                            } else {
+                                error::wrong_operand_type(arg.get_line(), old_node.get_name(), arg.get_name(), "Identifier", script);
+                            }
+                        }
+
+                        param_names
+                    } else {
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), "Call", script);
+                    }
+                } else {
+                    error::expected_operand(old_node.get_line(), old_node.get_name(), script);
+                };
+
+                *body = if let Some(node) = extract_node(statement, index + 1) {
+                    if let SyntaxNode::Scope { statements, .. } = node {
+                        statements
+                    } else {
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), "Scope", script);
+                    }
+                } else {
+                    error::expected_operand(old_node.get_line(), old_node.get_name(), script);
+                };
             },
 
-            SyntaxNode::If { priority, condition, body, else_body, line } => todo!(),
+            SyntaxNode::Elif { condition, body, else_body, .. } => {
+
+            },
+
+            SyntaxNode::If { condition, body, else_body, .. } => {
+                
+            },
             
             SyntaxNode::While { condition, body, .. } => {
                 *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(

@@ -51,6 +51,7 @@ pub enum Token {
     Fun { priority: usize, line: usize },
     Return { priority: usize, line: usize },
     If { priority: usize, line: usize },
+    Elif { priority: usize, line: usize },
     Else { priority: usize, line: usize },
     While { priority: usize, line: usize },
     For { priority: usize, line: usize },
@@ -109,6 +110,7 @@ impl Token {
             Token::Fun { line, .. } => *line,
             Token::Return { line, .. } => *line,
             Token::If { line, .. } => *line,
+            Token::Elif { line, .. } => *line,
             Token::Else { line, .. } => *line,
             Token::While { line, .. } => *line,
             Token::For { line, .. } => *line,
@@ -160,6 +162,7 @@ impl Token {
             Token::Or { .. } |
             Token::Return { .. } |
             Token::If { .. } |
+            Token::Elif { .. } |
             Token::Else { .. } |
             Token::While { .. } |
             Token::In { .. } |
@@ -221,6 +224,7 @@ impl std::fmt::Display for Token {
             Token::Fun { .. } => write!(f, "Fun"),
             Token::Return { .. } => write!(f, "Return"),
             Token::If { .. } => write!(f, "If"),
+            Token::Elif { .. } => write!(f, "Elif"),
             Token::Else { .. } => write!(f, "Else"),
             Token::While { .. } => write!(f, "While"),
             Token::For { .. } => write!(f, "For"),
@@ -251,17 +255,21 @@ pub fn string_to_keyword(string: &str, priority: usize, line: usize) -> Option<T
 }
 
 
-pub const VALUE_PRIORITY: usize = 0;
-pub const KEYWORD_PRIORITY: usize = 1;
-pub const ASSIGNMENG_PRIORITY: usize = 2;
-pub const OR_PRIORITY: usize = 3;
-pub const AND_PRIORITY: usize = 4;
-pub const EQUALITY_PRIORITY: usize = 5;
-pub const COMPARISON_PRIORITY: usize = 6;
-pub const ADD_SUB_PRIORITY: usize = 7;
-pub const MUL_DIV_MOD_PRIORITY: usize = 8;
-pub const NOT_PRIORITY: usize = 9;
-pub const GROUPING_PRIORITY: usize = 10;
+pub enum Priority {
+    Value = 0,
+    Keyword,
+    Elif,
+    Else,
+    Assignment,
+    Or,
+    And,
+    Equality,
+    Comparison,
+    AddSub,
+    MulDivMod,
+    Not,
+    Grouping,
+}
 
 
 fn add_variant_priority(token_variant: &mut Token) {
@@ -274,11 +282,11 @@ fn add_variant_priority(token_variant: &mut Token) {
         Token::Numeric { .. } => panic!("Numeric token should not be added to the token list"),
 
         // Value tokens, need to be evaluated first for operators to use them
-        Token::Integer { priority, .. } => *priority = VALUE_PRIORITY,
-        Token::Float { priority, .. } => *priority = VALUE_PRIORITY,
-        Token::String { priority, .. } => *priority = VALUE_PRIORITY,
-        Token::Boolean { priority, .. } => *priority = VALUE_PRIORITY,
-        Token::Identifier { priority, .. } => *priority = VALUE_PRIORITY,
+        Token::Integer { priority, .. } => *priority = Priority::Value as usize,
+        Token::Float { priority, .. } => *priority = Priority::Value as usize,
+        Token::String { priority, .. } => *priority = Priority::Value as usize,
+        Token::Boolean { priority, .. } => *priority = Priority::Value as usize,
+        Token::Identifier { priority, .. } => *priority = Priority::Value as usize,
         
         // Non-operation tokens
         Token::Comma { priority, .. } => *priority = 0,
@@ -287,59 +295,60 @@ fn add_variant_priority(token_variant: &mut Token) {
         Token::EndOfStatement { priority, .. } => *priority = 0,
 
         // Keyword operators
-        Token::Fun { priority, .. } => *priority += KEYWORD_PRIORITY,
-        Token::Return { priority, .. } => *priority += KEYWORD_PRIORITY,
-        Token::If { priority, .. } => *priority += KEYWORD_PRIORITY,
-        Token::Else { priority, .. } => *priority += KEYWORD_PRIORITY,
-        Token::While { priority, .. } => *priority += KEYWORD_PRIORITY,
-        Token::For { priority, .. } => *priority += KEYWORD_PRIORITY,
-        Token::In { priority, .. } => *priority += KEYWORD_PRIORITY,
-        Token::Break { priority, .. } => *priority += KEYWORD_PRIORITY,
-        Token::Continue { priority, .. } => *priority += KEYWORD_PRIORITY,
+        Token::Fun { priority, .. } => *priority += Priority::Keyword as usize,
+        Token::Return { priority, .. } => *priority += Priority::Keyword as usize,
+        Token::If { priority, .. } => *priority += Priority::Keyword as usize,
+        Token::Elif { priority, .. } => *priority += Priority::Elif as usize,
+        Token::Else { priority, .. } => *priority += Priority::Else as usize,
+        Token::While { priority, .. } => *priority += Priority::Keyword as usize,
+        Token::For { priority, .. } => *priority += Priority::Keyword as usize,
+        Token::In { priority, .. } => *priority += Priority::Keyword as usize,
+        Token::Break { priority, .. } => *priority += Priority::Keyword as usize,
+        Token::Continue { priority, .. } => *priority += Priority::Keyword as usize,
 
         // Assignment
-        Token::Equal { priority, .. } => *priority += ASSIGNMENG_PRIORITY,
-        Token::PlusEqual { priority, .. } => *priority += ASSIGNMENG_PRIORITY,
-        Token::MinusEqual { priority, .. } => *priority += ASSIGNMENG_PRIORITY,
-        Token::StarEquals { priority, .. } => *priority += ASSIGNMENG_PRIORITY,
-        Token::SlashEqual { priority, .. } => *priority += ASSIGNMENG_PRIORITY,
-        Token::ModuloEqual { priority, .. } => *priority += ASSIGNMENG_PRIORITY,
+        Token::Equal { priority, .. } => *priority += Priority::Assignment as usize,
+        Token::PlusEqual { priority, .. } => *priority += Priority::Assignment as usize,
+        Token::MinusEqual { priority, .. } => *priority += Priority::Assignment as usize,
+        Token::StarEquals { priority, .. } => *priority += Priority::Assignment as usize,
+        Token::SlashEqual { priority, .. } => *priority += Priority::Assignment as usize,
+        Token::ModuloEqual { priority, .. } => *priority += Priority::Assignment as usize,
 
         // Logical or
-        Token::Or { priority, .. } => *priority += OR_PRIORITY,
+        Token::Or { priority, .. } => *priority += Priority::Or as usize,
 
         // Logical and
-        Token::And { priority, .. } => *priority += AND_PRIORITY,
+        Token::And { priority, .. } => *priority += Priority::And as usize,
 
         // Equality
-        Token::EqualEqual { priority, .. } => *priority += EQUALITY_PRIORITY,
-        Token::NotEqual { priority, .. } => *priority += EQUALITY_PRIORITY,
+        Token::EqualEqual { priority, .. } => *priority += Priority::Equality as usize,
+        Token::NotEqual { priority, .. } => *priority += Priority::Equality as usize,
 
         // Comparison
-        Token::Less { priority, .. } => *priority += COMPARISON_PRIORITY,
-        Token::Greater { priority, .. } => *priority += COMPARISON_PRIORITY,
-        Token::LessEqual { priority, .. } => *priority += COMPARISON_PRIORITY,
-        Token::GreaterEqual { priority, .. } => *priority += COMPARISON_PRIORITY,
+        Token::Less { priority, .. } => *priority += Priority::Comparison as usize,
+        Token::Greater { priority, .. } => *priority += Priority::Comparison as usize,
+        Token::LessEqual { priority, .. } => *priority += Priority::Comparison as usize,
+        Token::GreaterEqual { priority, .. } => *priority += Priority::Comparison as usize,
 
         // Addition and subtraction
-        Token::Plus { priority, .. } => *priority += ADD_SUB_PRIORITY,
-        Token::Minus { priority, .. } => *priority += ADD_SUB_PRIORITY,
+        Token::Plus { priority, .. } => *priority += Priority::AddSub as usize,
+        Token::Minus { priority, .. } => *priority += Priority::AddSub as usize,
 
         // Multiplication, division, and remainder
-        Token::Star { priority, .. } => *priority += MUL_DIV_MOD_PRIORITY,
-        Token::Slash { priority, .. } => *priority += MUL_DIV_MOD_PRIORITY,
-        Token::Modulo { priority, .. } => *priority += MUL_DIV_MOD_PRIORITY,
+        Token::Star { priority, .. } => *priority += Priority::MulDivMod as usize,
+        Token::Slash { priority, .. } => *priority += Priority::MulDivMod as usize,
+        Token::Modulo { priority, .. } => *priority += Priority::MulDivMod as usize,
 
         // Logical not
-        Token::Not { priority, .. } => *priority += NOT_PRIORITY,
+        Token::Not { priority, .. } => *priority += Priority::Not as usize,
 
         // Grouping
-        Token::OpenParen { priority, .. } => *priority += GROUPING_PRIORITY,
-        Token::CloseParen { priority, .. } => *priority += GROUPING_PRIORITY,
-        Token::OpenBrace { priority, .. } => *priority += GROUPING_PRIORITY,
-        Token::CloseBrace { priority, .. } => *priority += GROUPING_PRIORITY,
-        Token::OpenSquare { priority, .. } => *priority += GROUPING_PRIORITY,
-        Token::CloseSquare { priority, .. } => *priority += GROUPING_PRIORITY,
+        Token::OpenParen { priority, .. } => *priority += Priority::Grouping as usize,
+        Token::CloseParen { priority, .. } => *priority += Priority::Grouping as usize,
+        Token::OpenBrace { priority, .. } => *priority += Priority::Grouping as usize,
+        Token::CloseBrace { priority, .. } => *priority += Priority::Grouping as usize,
+        Token::OpenSquare { priority, .. } => *priority += Priority::Grouping as usize,
+        Token::CloseSquare { priority, .. } => *priority += Priority::Grouping as usize,
         
     }
 }

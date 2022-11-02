@@ -62,6 +62,11 @@ pub fn empty_list_element(line: usize, script: &str) -> ! {
 }
 
 
+pub fn empty_function_argument(line: usize, script: &str) -> ! {
+    error(format!("Missing argument for function at line {}:\n{}\n\nYou probably have an unwanted comma.", line, script));
+}
+
+
 pub fn wrong_operand_type(line: usize, operator: &str, got: &str, expected: &str, script: &str) -> ! {
     error(format!("Wrong operand type for operator '{}' at line {}:\n{}\n\nExpected {}, got {}.", operator, line, script, expected, got));
 }
@@ -69,5 +74,10 @@ pub fn wrong_operand_type(line: usize, operator: &str, got: &str, expected: &str
 
 pub fn invalid_statement(line: usize, script: &str) -> ! {
     error(format!("Invalid statement at line {}:\n{}\n\n", line, script));
+}
+
+
+pub fn empty_parentheses(line: usize, script: &str) -> ! {
+    error(format!("Empty parentheses at line {}:\n{}\n\n", line, script));
 }
 

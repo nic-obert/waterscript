@@ -1,6 +1,6 @@
 use core::panic;
 
-use crate::token::{Token, TokenList, GROUPING_PRIORITY, string_to_keyword};
+use crate::token::{Token, TokenList, Priority, string_to_keyword};
 use crate::error;
 
 
@@ -269,30 +269,30 @@ pub fn tokenize(script: &String) -> TokenList {
 
             '(' => {
                 current_token = Some(Token::OpenParen { priority: current_priority, line });
-                current_priority += GROUPING_PRIORITY;
+                current_priority += Priority::Grouping as usize;
                 grouping_depth += 1;
             },
             ')' => {
-                current_priority -= GROUPING_PRIORITY;
+                current_priority -= Priority::Grouping as usize;
                 grouping_depth -= 1;
                 current_token = Some(Token::CloseParen { priority: current_priority, line });
             },
             '[' => {
                 current_token = Some(Token::OpenSquare { priority: current_priority, line });
-                current_priority += GROUPING_PRIORITY;
+                current_priority += Priority::Grouping as usize;
                 grouping_depth += 1;
             },
             ']' => {
-                current_priority -= GROUPING_PRIORITY;
+                current_priority -= Priority::Grouping as usize;
                 grouping_depth -= 1;
                 current_token = Some(Token::CloseSquare { priority: current_priority, line });
             },
             '{' => {
-                current_priority += GROUPING_PRIORITY;
+                current_priority += Priority::Grouping as usize;
                 current_token = Some(Token::OpenBrace { priority: current_priority, line });
             },
             '}' => {
-                current_priority -= GROUPING_PRIORITY;
+                current_priority -= Priority::Grouping as usize;
                 current_token = Some(Token::CloseBrace { priority: current_priority, line });
             },
 
