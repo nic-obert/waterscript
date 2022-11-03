@@ -242,6 +242,7 @@ pub fn string_to_keyword(string: &str, priority: usize, line: usize) -> Option<T
         "fun" => Some(Token::Fun { priority, line }),
         "return" => Some(Token::Return { priority, line }),
         "if" => Some(Token::If { priority, line }),
+        "elif" => Some(Token::Elif { priority, line }),
         "else" => Some(Token::Else { priority, line }),
         "while" => Some(Token::While { priority, line }),
         "for" => Some(Token::For { priority, line }),

@@ -41,8 +41,8 @@ pub enum SyntaxNode {
     // Keywords
     Fun { priority: usize, name: String, params: Vec<String>, body: SyntaxTree, line: usize },
     Return { priority: usize, value: Option<Box<SyntaxNode>>, line: usize },
-    If { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_body: Option<Box<SyntaxNode>>, line: usize },
-    Elif { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_body: Option<Box<SyntaxNode>>, line: usize },
+    If { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_node: Option<Box<SyntaxNode>>, line: usize },
+    Elif { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_node: Option<Box<SyntaxNode>>, line: usize },
     Else { priority: usize, body: Box<SyntaxNode>, line: usize },
     While { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, line: usize },
     For { priority: usize, variable: String, iterable: Box<SyntaxNode>, body: Box<SyntaxNode>, line: usize },
@@ -629,11 +629,11 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
             },
             
             Token::If { priority, line } => {
-                current_statement.push(SyntaxNode::If { priority: *priority, condition: placeholder(), body: placeholder(), else_body: None, line: *line });
+                current_statement.push(SyntaxNode::If { priority: *priority, condition: placeholder(), body: placeholder(), else_node: None, line: *line });
             },
 
             Token::Elif { priority, line } => {
-                current_statement.push(SyntaxNode::Elif { priority: *priority, condition: placeholder(), body: placeholder(), else_body: None, line: *line });
+                current_statement.push(SyntaxNode::Elif { priority: *priority, condition: placeholder(), body: placeholder(), else_node: None, line: *line });
             },
             
             Token::Else { priority, line } => {
@@ -810,14 +810,70 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                 } else {
                     error::expected_operand(old_node.get_line(), old_node.get_name(), script);
                 };
+
+                statement[index] = new_node;
             },
 
-            SyntaxNode::Elif { condition, body, else_body, .. } => {
+            SyntaxNode::Elif { condition, body, .. } => {
+                *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                ));
+                *body = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                ));
 
+                // The else_node field will be filled by the master if statement
+
+                statement[index] = new_node;
             },
 
-            SyntaxNode::If { condition, body, else_body, .. } => {
-                
+            SyntaxNode::If { condition, body, else_node, .. } => {
+                *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                ));
+                *body = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                ));
+
+                // Extract the elif chain, if present
+
+                let mut elif_chain: Vec<SyntaxNode> = Vec::new();
+                let mut elif_index = index + 1;
+                while elif_index < statement.len() {
+                    let node = &statement[elif_index];
+                    match node {
+                        SyntaxNode::Elif { .. } => {
+                            elif_chain.push(statement.remove(elif_index));
+                        },
+                        SyntaxNode::Else { .. }
+                         => {
+                            elif_chain.push(statement.remove(elif_index));
+                            break;
+                        },
+                        _ => break,
+                    }
+
+                    elif_index += 1;
+                }
+                    
+                // Build the elif node chain in reverse order
+
+                // This also skips the case where the elif chain is empty (len = 0)
+                while elif_chain.len() > 1 {
+                    let last = elif_chain.pop().unwrap();
+                    match elif_chain.last_mut().unwrap() {
+                        SyntaxNode::Elif { else_node, .. } => {
+                            *else_node = Some(Box::new(last));
+                        },
+                        _ => unreachable!(),
+                    }
+                }
+
+                if let Some(elif) = elif_chain.pop() {
+                    *else_node = Some(Box::new(elif));
+                }
+
+                statement[index] = new_node;
             },
             
             SyntaxNode::While { condition, body, .. } => {

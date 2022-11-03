@@ -1,6 +1,4 @@
-# Project
-
-Project Description
+# WaterScript
 
 <em>[TODO.md spec & Kanban Board](https://bit.ly/3fCwKfM)</em>
 
@@ -10,8 +8,8 @@ Project Description
 
 ### In Progress
 
-- [ ] create syntax tree and syntax nodes that represent operations  
 
 ### Done ✓
 
+- [x] create syntax tree and syntax nodes that represent operations  
 
