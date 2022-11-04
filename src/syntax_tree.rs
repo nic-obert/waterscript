@@ -1,6 +1,7 @@
+use lazy_static::lazy_static;
+
 use crate::token::Token;
 use crate::error;
-use std::mem;
 
 
 /// Represents a syntax unit with meaning.
@@ -42,11 +43,11 @@ pub enum SyntaxNode {
     // Keywords
     Fun { priority: usize, name: String, params: Vec<String>, body: SyntaxTree, line: usize },
     Return { priority: usize, value: Option<Box<SyntaxNode>>, line: usize },
-    If { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_node: Option<Box<SyntaxNode>>, line: usize },
-    Elif { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, else_node: Option<Box<SyntaxNode>>, line: usize },
-    Else { priority: usize, body: Box<SyntaxNode>, line: usize },
-    While { priority: usize, condition: Box<SyntaxNode>, body: Box<SyntaxNode>, line: usize },
-    For { priority: usize, variable: String, iterable: Box<SyntaxNode>, body: Box<SyntaxNode>, line: usize },
+    If { priority: usize, condition: Box<SyntaxNode>, body: SyntaxTree, else_node: Option<Box<SyntaxNode>>, line: usize },
+    Elif { priority: usize, condition: Box<SyntaxNode>, body: SyntaxTree, else_node: Option<Box<SyntaxNode>>, line: usize },
+    Else { priority: usize, body: SyntaxTree, line: usize },
+    While { priority: usize, condition: Box<SyntaxNode>, body: SyntaxTree, line: usize },
+    For { priority: usize, variable: String, iterable: Box<SyntaxNode>, body: SyntaxTree, line: usize },
     In { priority: usize, iterable: Box<SyntaxNode>, line: usize },
     Break { priority: usize, line: usize },
     Continue { priority: usize, line: usize },
@@ -61,7 +62,7 @@ pub enum SyntaxNode {
 }
 
 
-// Const blank enum variants
+// Const blank enum variants for comparison
 const PLACEHOLDER: SyntaxNode = SyntaxNode::Placeholder;
 
 #[inline]
@@ -69,25 +70,50 @@ fn placeholder() -> Box<SyntaxNode> {
     Box::new(PLACEHOLDER)
 }
 
-static ADD: SyntaxNode = SyntaxNode::Add { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const SUB: SyntaxNode = SyntaxNode::Sub { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const MUL: SyntaxNode = SyntaxNode::Mul { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const DIV: SyntaxNode = SyntaxNode::Div { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const MOD: SyntaxNode = SyntaxNode::Mod { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const ASSIGN: SyntaxNode = SyntaxNode::Assign { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const ASSIGN_ADD: SyntaxNode = SyntaxNode::AssignAdd { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const ASSIGN_SUB: SyntaxNode = SyntaxNode::AssignSub { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const ASSIGN_MUL: SyntaxNode = SyntaxNode::AssignMul { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const ASSIGN_DIV: SyntaxNode = SyntaxNode::AssignDiv { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const ASSIGN_MOD: SyntaxNode = SyntaxNode::AssignMod { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const AND: SyntaxNode = SyntaxNode::And { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const OR: SyntaxNode = SyntaxNode::Or { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const NOT: SyntaxNode = SyntaxNode::Not { priority: 0, operand: placeholder(), line: 0 };
-const LESS: SyntaxNode = SyntaxNode::Less { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const GREATER: SyntaxNode = SyntaxNode::Greater { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const LESS_EQUAL: SyntaxNode = SyntaxNode::LessEqual { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
-const GREATER_EQUAL: SyntaxNode = SyntaxNode::GreaterEqual { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+lazy_static!{
 
+static ref ADD: SyntaxNode = SyntaxNode::Add { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref SUB: SyntaxNode = SyntaxNode::Sub { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref MUL: SyntaxNode = SyntaxNode::Mul { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref DIV: SyntaxNode = SyntaxNode::Div { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref MOD: SyntaxNode = SyntaxNode::Mod { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref ASSIGN: SyntaxNode = SyntaxNode::Assign { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref ASSIGN_ADD: SyntaxNode = SyntaxNode::AssignAdd { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref ASSIGN_SUB: SyntaxNode = SyntaxNode::AssignSub { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref ASSIGN_MUL: SyntaxNode = SyntaxNode::AssignMul { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref ASSIGN_DIV: SyntaxNode = SyntaxNode::AssignDiv { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref ASSIGN_MOD: SyntaxNode = SyntaxNode::AssignMod { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref AND: SyntaxNode = SyntaxNode::And { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref OR: SyntaxNode = SyntaxNode::Or { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref NOT: SyntaxNode = SyntaxNode::Not { priority: 0, operand: placeholder(), line: 0 };
+static ref LESS: SyntaxNode = SyntaxNode::Less { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref GREATER: SyntaxNode = SyntaxNode::Greater { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref LESS_EQUAL: SyntaxNode = SyntaxNode::LessEqual { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref GREATER_EQUAL: SyntaxNode = SyntaxNode::GreaterEqual { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref EQUAL: SyntaxNode = SyntaxNode::Equal { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref NOT_EQUAL: SyntaxNode = SyntaxNode::NotEqual { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+static ref SUBSCRIPT: SyntaxNode = SyntaxNode::Subscript { priority: 0, iterable: placeholder(), index: placeholder(), line: 0 };
+static ref CALL: SyntaxNode = SyntaxNode::Call { priority: 0, function: placeholder(), arguments: vec![], line: 0 };
+static ref INT: SyntaxNode = SyntaxNode::Int { priority: 0, value: 0, line: 0 };
+static ref FLOAT: SyntaxNode = SyntaxNode::Float { priority: 0, value: 0.0, line: 0 };
+static ref STRING: SyntaxNode = SyntaxNode::String { priority: 0, value: String::new(), line: 0 };
+static ref BOOLEAN: SyntaxNode = SyntaxNode::Boolean { priority: 0, value: false, line: 0 };
+static ref LIST: SyntaxNode = SyntaxNode::List { priority: 0, elements: vec![], line: 0 };
+static ref IDENTIFIER: SyntaxNode = SyntaxNode::Identifier { priority: 0, value: String::new(), line: 0 };
+static ref FUN: SyntaxNode = SyntaxNode::Fun { priority: 0, name: String::new(), params: vec![], body: Default::default(), line: 0 };
+static ref RETURN: SyntaxNode = SyntaxNode::Return { priority: 0, value: None, line: 0 };
+static ref IF: SyntaxNode = SyntaxNode::If { priority: 0, condition: placeholder(), body: Default::default(), else_node: None, line: 0 };
+static ref ELIF: SyntaxNode = SyntaxNode::Elif { priority: 0, condition: placeholder(), body: Default::default(), else_node: None, line: 0 };
+static ref ELSE: SyntaxNode = SyntaxNode::Else { priority: 0, body: Default::default(), line: 0 };
+static ref WHILE: SyntaxNode = SyntaxNode::While { priority: 0, condition: placeholder(), body: Default::default(), line: 0 };
+static ref FOR: SyntaxNode = SyntaxNode::For { priority: 0, variable: String::new(), iterable: placeholder(), body: Default::default(), line: 0 };
+static ref IN: SyntaxNode = SyntaxNode::In { priority: 0, iterable: placeholder(), line: 0 };
+static ref BREAK: SyntaxNode = SyntaxNode::Break { priority: 0, line: 0 };
+static ref CONTINUE: SyntaxNode = SyntaxNode::Continue { priority: 0, line: 0 };
+static ref SCOPE: SyntaxNode = SyntaxNode::Scope { priority: 0, statements: Default::default(), line: 0 };
+static ref PARENTHESIS: SyntaxNode = SyntaxNode::Parenthesis { priority: 0, child: placeholder(), line: 0 };
+
+}
 
 
 impl SyntaxNode {
@@ -282,9 +308,6 @@ impl SyntaxNode {
             SyntaxNode::Call { .. } => "Call",
         }
     }
-
-
-    // pub fn check_type(&self, expected:)
 
 }
 
@@ -654,23 +677,23 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
             },
             
             Token::If { priority, line } => {
-                current_statement.push(SyntaxNode::If { priority: *priority, condition: placeholder(), body: placeholder(), else_node: None, line: *line });
+                current_statement.push(SyntaxNode::If { priority: *priority, condition: placeholder(), body: Default::default(), else_node: None, line: *line });
             },
 
             Token::Elif { priority, line } => {
-                current_statement.push(SyntaxNode::Elif { priority: *priority, condition: placeholder(), body: placeholder(), else_node: None, line: *line });
+                current_statement.push(SyntaxNode::Elif { priority: *priority, condition: placeholder(), body: Default::default(), else_node: None, line: *line });
             },
             
             Token::Else { priority, line } => {
-                current_statement.push(SyntaxNode::Else { priority: *priority, body: placeholder(), line: *line });
+                current_statement.push(SyntaxNode::Else { priority: *priority, body: Default::default(), line: *line });
             },
             
             Token::While { priority, line } => {
-                current_statement.push(SyntaxNode::While { priority: *priority, condition: placeholder(), body: placeholder(), line: *line });
+                current_statement.push(SyntaxNode::While { priority: *priority, condition: placeholder(), body: Default::default(), line: *line });
             },
             
             Token::For { priority, line } => {
-                current_statement.push(SyntaxNode::For { priority: *priority, variable: String::new(), iterable: placeholder(), body: placeholder(), line: *line });
+                current_statement.push(SyntaxNode::For { priority: *priority, variable: String::new(), iterable: placeholder(), body: Default::default(), line: *line });
             },
             
             Token::In { priority, line } => {
@@ -761,7 +784,6 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
 
             // Unary operators with right operand
             SyntaxNode::Not { operand, .. } |
-            SyntaxNode::Else { body: operand, .. } |
             SyntaxNode::In { iterable: operand, .. }
              => {
                 **operand = unary_extract_right(statement, index, old_node, script);
@@ -798,7 +820,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     if let SyntaxNode::Identifier { value, .. } = node {
                         value
                     } else {
-                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), "Identifier", script);
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), IDENTIFIER.get_name(), script);
                     }
                 } else {
                     error::expected_operand(old_node.get_line(), old_node.get_name(), script);
@@ -814,13 +836,13 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                             if let SyntaxNode::Identifier { value, .. } = arg {
                                 param_names.push(value);
                             } else {
-                                error::wrong_operand_type(arg.get_line(), old_node.get_name(), arg.get_name(), "Identifier", script);
+                                error::wrong_operand_type(arg.get_line(), old_node.get_name(), arg.get_name(), IDENTIFIER.get_name(), script);
                             }
                         }
 
                         param_names
                     } else {
-                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), "Call", script);
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), CALL.get_name(), script);
                     }
                 } else {
                     error::expected_operand(old_node.get_line(), old_node.get_name(), script);
@@ -830,7 +852,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     if let SyntaxNode::Scope { statements, .. } = node {
                         statements
                     } else {
-                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), "Scope", script);
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), SCOPE.get_name(), script);
                     }
                 } else {
                     error::expected_operand(old_node.get_line(), old_node.get_name(), script);
@@ -843,9 +865,16 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                 *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
                 ));
-                *body = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+
+                let body_node = extract_node(statement, index + 1).unwrap_or_else(
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
-                ));
+                );
+
+                if let SyntaxNode::Scope { statements, .. } = body_node {
+                    *body = statements;
+                } else {
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                }
 
                 // The else_node field will be filled by the master if statement
 
@@ -856,9 +885,16 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                 *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
                 ));
-                *body = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+                
+                let body_node = extract_node(statement, index + 1).unwrap_or_else(
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
-                ));
+                );
+
+                if let SyntaxNode::Scope { statements, .. } = body_node {
+                    *body = statements;
+                } else {
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                }
 
                 // Extract the elif chain, if present
 
@@ -900,14 +936,36 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
 
                 statement[index] = new_node;
             },
+
+            SyntaxNode::Else { body, .. } => {
+                let body_node = extract_node(statement, index + 1).unwrap_or_else(
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                );
+
+                if let SyntaxNode::Scope { statements, .. } = body_node {
+                    *body = statements;
+                } else {
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                }
+
+                statement[index] = new_node;
+            },
+
             
             SyntaxNode::While { condition, body, .. } => {
                 *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
                 ));
-                *body = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+                
+                let body_node = extract_node(statement, index + 1).unwrap_or_else(
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
-                ));
+                );
+
+                if let SyntaxNode::Scope { statements, .. } = body_node {
+                    *body = statements;
+                } else {
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                }
 
                 statement[index] = new_node;
             },
@@ -917,19 +975,31 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     if let SyntaxNode::Identifier { value, .. } = node {
                         value
                     } else {
-                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), "Identifier", script);
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), IDENTIFIER.get_name(), script);
                     }
                 } else {
                     error::expected_operand(old_node.get_line(), old_node.get_name(), script);
                 };
 
-                *iterable = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+                let in_node = extract_node(statement, index + 1).unwrap_or_else(
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
-                ));
+                );
 
-                *body = Box::new(extract_node(statement, index + 1).unwrap_or_else(
+                if let SyntaxNode::In { iterable: iter, .. } = in_node {
+                    *iterable = Box::new(*iter);
+                } else {
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), in_node.get_name(), IN.get_name(), script);
+                }
+
+                let body_node = extract_node(statement, index + 1).unwrap_or_else(
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
-                ));
+                );
+
+                if let SyntaxNode::Scope { statements, .. } = body_node {
+                    *body = statements;
+                } else {
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                }
 
                 statement[index] = new_node;
             },
