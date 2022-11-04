@@ -1,5 +1,3 @@
-use core::panic;
-
 use crate::token::{Token, TokenList, Priority, string_to_keyword};
 use crate::error;
 
@@ -236,7 +234,7 @@ pub fn tokenize(script: &String) -> TokenList {
                     continue;
                 },
                 
-                _ => panic!("Invalid token: {:?}", token),
+                _ => unimplemented!("Invalid token: {:?}", token),
 
             }
 

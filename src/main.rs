@@ -6,6 +6,7 @@ mod tokenizer;
 mod types;
 mod error;
 mod byte_code;
+mod jit;
 
 
 use clap::Parser;
@@ -36,5 +37,7 @@ fn main() {
 
     let syntax_tree = syntax_tree::SyntaxTree::from_tokens(&mut tokens.extract_tokens(), &script);
     
+    let jit = jit::Jit::from_syntax_tree(syntax_tree, &script);
+
 }
 

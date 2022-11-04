@@ -1,5 +1,6 @@
 use crate::token::Token;
 use crate::error;
+use std::mem;
 
 
 /// Represents a syntax unit with meaning.
@@ -60,12 +61,33 @@ pub enum SyntaxNode {
 }
 
 
+// Const blank enum variants
 const PLACEHOLDER: SyntaxNode = SyntaxNode::Placeholder;
 
 #[inline]
 fn placeholder() -> Box<SyntaxNode> {
     Box::new(PLACEHOLDER)
 }
+
+static ADD: SyntaxNode = SyntaxNode::Add { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const SUB: SyntaxNode = SyntaxNode::Sub { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const MUL: SyntaxNode = SyntaxNode::Mul { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const DIV: SyntaxNode = SyntaxNode::Div { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const MOD: SyntaxNode = SyntaxNode::Mod { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const ASSIGN: SyntaxNode = SyntaxNode::Assign { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const ASSIGN_ADD: SyntaxNode = SyntaxNode::AssignAdd { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const ASSIGN_SUB: SyntaxNode = SyntaxNode::AssignSub { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const ASSIGN_MUL: SyntaxNode = SyntaxNode::AssignMul { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const ASSIGN_DIV: SyntaxNode = SyntaxNode::AssignDiv { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const ASSIGN_MOD: SyntaxNode = SyntaxNode::AssignMod { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const AND: SyntaxNode = SyntaxNode::And { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const OR: SyntaxNode = SyntaxNode::Or { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const NOT: SyntaxNode = SyntaxNode::Not { priority: 0, operand: placeholder(), line: 0 };
+const LESS: SyntaxNode = SyntaxNode::Less { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const GREATER: SyntaxNode = SyntaxNode::Greater { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const LESS_EQUAL: SyntaxNode = SyntaxNode::LessEqual { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+const GREATER_EQUAL: SyntaxNode = SyntaxNode::GreaterEqual { priority: 0, left: placeholder(), right: placeholder(), line: 0 };
+
 
 
 impl SyntaxNode {
@@ -109,7 +131,7 @@ impl SyntaxNode {
             SyntaxNode::Break { line, .. } => *line,
             SyntaxNode::Continue { line, .. } => *line,
             SyntaxNode::Scope { line, .. } => *line,
-            SyntaxNode::Placeholder => panic!("Placeholder node has no line number"),
+            SyntaxNode::Placeholder => unimplemented!("Placeholder node has no line number"),
             SyntaxNode::Parenthesis { line, .. } => *line,
             SyntaxNode::Subscript { line, .. } => *line,
             SyntaxNode::Call { line, .. } => *line,
@@ -156,7 +178,7 @@ impl SyntaxNode {
             SyntaxNode::Break { priority, .. } => *priority,
             SyntaxNode::Continue { priority, .. } => *priority,
             SyntaxNode::Scope { priority, .. } => *priority,
-            SyntaxNode::Placeholder => panic!("Placeholder node has no priority"),
+            SyntaxNode::Placeholder => unimplemented!("Placeholder node has no priority"),
             SyntaxNode::Parenthesis { priority, .. } => *priority,
             SyntaxNode::Subscript { priority, .. } => *priority,
             SyntaxNode::Call { priority, .. } => *priority,
@@ -206,7 +228,7 @@ impl SyntaxNode {
                 SyntaxNode::Break { priority, .. } => *priority = 0,
                 SyntaxNode::Continue { priority, .. } => *priority = 0,
                 SyntaxNode::Scope { priority, .. } => *priority = 0,    
-                SyntaxNode::Placeholder => panic!("Placeholder node has no priority"),
+                SyntaxNode::Placeholder => unimplemented!("Placeholder node has no priority"),
                 SyntaxNode::Parenthesis { priority, .. } => *priority = 0,
                 SyntaxNode::Subscript { priority, .. } => *priority = 0,
                 SyntaxNode::Call { priority, .. } => *priority = 0,
@@ -215,7 +237,7 @@ impl SyntaxNode {
     }
 
 
-    fn get_name(&self) -> &'static str {
+    pub fn get_name(&self) -> &'static str {
         match self {
             SyntaxNode::Add { .. } => "Add",
             SyntaxNode::Sub { .. } => "Sub",
@@ -261,13 +283,16 @@ impl SyntaxNode {
         }
     }
 
+
+    // pub fn check_type(&self, expected:)
+
 }
 
 
 /// Represents a list of statements.
 #[derive(Clone, Default)]
 pub struct SyntaxTree {
-    statements: Vec<SyntaxNode>,
+    pub statements: Vec<SyntaxNode>,
 }
 
 
@@ -909,7 +934,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                 statement[index] = new_node;
             },
 
-            _ => panic!("Invalid syntax node during parsing: {}", new_node.get_name())
+            _ => unimplemented!("Invalid syntax node during parsing: {}", new_node.get_name())
         }
     }
 

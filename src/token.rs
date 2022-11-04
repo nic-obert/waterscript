@@ -280,7 +280,7 @@ fn add_variant_priority(token_variant: &mut Token) {
     match token_variant {
 
         // Invalid tokens
-        Token::Numeric { .. } => panic!("Numeric token should not be added to the token list"),
+        Token::Numeric { .. } => unimplemented!("Numeric token should not be added to the token list"),
 
         // Value tokens, need to be evaluated first for operators to use them
         Token::Integer { priority, .. } => *priority = Priority::Value as usize,
