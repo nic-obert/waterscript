@@ -1,5 +1,4 @@
 use crate::syntax_tree::{SyntaxTree, SyntaxNode};
-use crate::byte_code::{ByteCodes, int_to_bytes};
 
 
 /// Represents an executable unit of code.
@@ -7,7 +6,7 @@ struct CodeBlock<'a> {
     /// Needs to keep a reference to the source code for error messages.
     pub syntax_node: &'a SyntaxNode,
     /// The executable part of a code block. If None, the code block hasn't been compiled yet.
-    pub code: Option<Vec<ByteCodes>>,
+    pub code: Option<Vec<u8>>,
     /// The operands the operator needs to execute. They should be executed before the parent operator.
     pub children: Option<Vec<CodeBlock<'a>>>,
 }
@@ -20,42 +19,51 @@ impl CodeBlock<'_> {
         
         match &syntax_node {
 
-            // Centered binary operators
-            SyntaxNode::Add { left, right, .. } |
-            SyntaxNode::Sub { left, right, .. } |
-            SyntaxNode::Mul { left, right, .. } |
-            SyntaxNode::Div { left, right, .. } |
-            SyntaxNode::Mod { left, right, .. } |
-            SyntaxNode::Assign { left, right, .. } |
-            SyntaxNode::AssignAdd { left, right, .. } |
-            SyntaxNode::AssignSub { left, right, .. } |
-            SyntaxNode::AssignMul { left, right, .. } |
-            SyntaxNode::AssignDiv { left, right, .. } |
-            SyntaxNode::AssignMod { left, right, .. } |
-            SyntaxNode::And { left, right, .. } |
-            SyntaxNode::Or { left, right, .. } |
-            SyntaxNode::Less { left, right, .. } |
-            SyntaxNode::Greater { left, right, .. } |
-            SyntaxNode::LessEqual { left, right, .. } |
-            SyntaxNode::GreaterEqual { left, right, .. } |
-            SyntaxNode::Equal { left, right, .. } |
-            SyntaxNode::NotEqual { left, right, .. } 
+            // Binary operators
+
+            SyntaxNode::Add { left: op1, right: op2, .. } |
+            SyntaxNode::Sub { left: op1, right: op2, .. } |
+            SyntaxNode::Mul { left: op1, right: op2, .. } |
+            SyntaxNode::Div { left: op1, right: op2, .. } |
+            SyntaxNode::Mod { left: op1, right: op2, .. } |
+            SyntaxNode::Assign { left: op1, right: op2, .. } |
+            SyntaxNode::AssignAdd { left: op1, right: op2, .. } |
+            SyntaxNode::AssignSub { left: op1, right: op2, .. } |
+            SyntaxNode::AssignMul { left: op1, right: op2, .. } |
+            SyntaxNode::AssignDiv { left: op1, right: op2, .. } |
+            SyntaxNode::AssignMod { left: op1, right: op2, .. } |
+            SyntaxNode::And { left: op1, right: op2, .. } |
+            SyntaxNode::Or { left: op1, right: op2, .. } |
+            SyntaxNode::Less { left: op1, right: op2, .. } |
+            SyntaxNode::Greater { left: op1, right: op2, .. } |
+            SyntaxNode::LessEqual { left: op1, right: op2, .. } |
+            SyntaxNode::GreaterEqual { left: op1, right: op2, .. } |
+            SyntaxNode::Equal { left: op1, right: op2, .. } |
+            SyntaxNode::Subscript { iterable: op1, index: op2, .. } |
+            SyntaxNode::NotEqual { left: op1, right: op2, .. } 
              => {
                 let children = vec![
-                    CodeBlock::from_syntax_node(left, script),
-                    CodeBlock::from_syntax_node(right, script),
+                    CodeBlock::from_syntax_node(op1, script),
+                    CodeBlock::from_syntax_node(op2, script),
                 ];
+
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
                     children: Some(children),
                 }
             },
-
+            
+            // Unary operators
+            
+            SyntaxNode::Parenthesis { child: operand, .. } |
+            SyntaxNode::In { iterable: operand, .. } |
+            SyntaxNode::Return { value: operand, .. } |
             SyntaxNode::Not { operand, .. } => {
                 let children = vec![
                     CodeBlock::from_syntax_node(operand, script),
                 ];
+
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
@@ -63,55 +71,68 @@ impl CodeBlock<'_> {
                 }
             },
             
-            SyntaxNode::Subscript { priority, iterable, index, line } => todo!(),
-            SyntaxNode::Call { priority, function, arguments, line } => todo!(),
+            // Leaf nodes that don't have children
             
-            // Compile-time constants get compiled to bytecode right away.
-
-            SyntaxNode::Int { value, .. } => {
-                let mut code = vec![
-                    ByteCodes::LoadConst
-                ];
-                code.extend(int_to_bytes(*value));
-
+            SyntaxNode::Int { .. } |
+            SyntaxNode::Float { .. } |
+            SyntaxNode::String { .. } |
+            SyntaxNode::Boolean { .. } |
+            SyntaxNode::Identifier { .. } |
+            SyntaxNode::None { .. } |
+            SyntaxNode::Break { .. } |
+            SyntaxNode::Continue { .. } |
+            SyntaxNode::List { .. } 
+            => {
                 CodeBlock {
                     syntax_node: &syntax_node,
-                    code: Some(code),
+                    code: None,
                     children: None,
                 }
             },
-
-            SyntaxNode::Float { value, .. } => {
-                let mut code = vec![
-                    ByteCodes::LoadConst
+           
+            SyntaxNode::Call { function, arguments, .. } => {
+                let mut children = vec![
+                    CodeBlock::from_syntax_node(function, script),
                 ];
-                code.extend(int_to_bytes(*value as i64));
-                
+
+                for argument in arguments {
+                    children.push(CodeBlock::from_syntax_node(argument, script));
+                }
+
                 CodeBlock {
                     syntax_node: &syntax_node,
-                    code: Some(code),
-                    children: None,
+                    code: None,
+                    children: Some(children),
+                }
+            },
+            
+            SyntaxNode::Scope { statements: body, .. } |
+            SyntaxNode::Else { body, .. } |
+            SyntaxNode::Fun { body, .. } => {
+                // Recursively convert the function body to code blocks.
+                let children: Vec<CodeBlock> = body.statements.iter().map(
+                    |statement| CodeBlock::from_syntax_node(statement, script)
+                ).collect();
+
+                CodeBlock {
+                    syntax_node: &syntax_node,
+                    code: None,
+                    children: Some(children),
                 }
             },
 
-            SyntaxNode::String { priority, value, line } => todo!(),
-            SyntaxNode::Boolean { priority, value, line } => todo!(),
-            SyntaxNode::List { priority, elements, line } => todo!(),
-            SyntaxNode::Identifier { priority, value, line } => todo!(),
-            SyntaxNode::Fun { priority, name, params, body, line } => todo!(),
-            SyntaxNode::Return { priority, value, line } => todo!(),
-            SyntaxNode::If { priority, condition, body, else_node, line } => todo!(),
-            SyntaxNode::Elif { priority, condition, body, else_node, line } => todo!(),
-            SyntaxNode::Else { priority, body, line } => todo!(),
+            
+            SyntaxNode::If { condition, body, else_node, .. } |
+            SyntaxNode::Elif { condition, body, else_node, .. }
+             => {
+                todo!()
+            },
+            
+            
             SyntaxNode::While { priority, condition, body, line } => todo!(),
             SyntaxNode::For { priority, variable, iterable, body, line } => todo!(),
-            SyntaxNode::In { priority, iterable, line } => todo!(),
-            SyntaxNode::Break { priority, line } => todo!(),
-            SyntaxNode::Continue { priority, line } => todo!(),
-            SyntaxNode::Scope { priority, statements, line } => todo!(),
-            SyntaxNode::Parenthesis { priority, child, line } => todo!(),
             
-            _ => unreachable!("Syntax node {} cannot be compiled.", syntax_node.get_name()),
+            _ => unreachable!("Syntax node {} cannot be converted into a CodeBlock.", syntax_node.get_name()),
         }
 
     }

@@ -3,10 +3,11 @@ mod token;
 mod vm;
 mod syntax_tree;
 mod tokenizer;
-mod types;
+mod object;
 mod error;
 mod byte_code;
 mod jit;
+mod exit_codes;
 
 
 use clap::Parser;
@@ -24,6 +25,11 @@ struct Cli {
     /// Verbose mode
     #[clap(short, long, action)]
     pub verbose: bool,
+
+    /// Quiet mode, doesn't print the exit message
+    #[clap(short, long, action)]
+    pub quiet: bool,
+
 }
 
 
@@ -38,6 +44,12 @@ fn main() {
     let syntax_tree = syntax_tree::SyntaxTree::from_tokens(&mut tokens.extract_tokens(), &script);
     
     let jit = jit::Jit::from_syntax_tree(&syntax_tree, &script);
+
+    let exit_code = vm::execute(jit);
+
+    if !args.quiet {
+        println!("Program finished with exit code {} ({})", exit_code, exit_code.name());
+    }
 
 }
 

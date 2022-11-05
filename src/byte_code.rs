@@ -67,17 +67,3 @@ impl std::convert::From<u8> for ByteCodes {
     }
 }
 
-
-pub fn int_to_bytes(value: i64) -> Vec<ByteCodes> {
-    let mut bytes = vec![];
-    bytes.extend_from_slice(&value.to_le_bytes());
-    bytes.iter().map(|byte| ByteCodes::from(*byte)).collect()
-}
-
-
-pub fn float_to_bytes(value: f64) -> Vec<ByteCodes> {
-    let mut bytes = vec![];
-    bytes.extend_from_slice(&value.to_le_bytes());
-    bytes.iter().map(|byte| ByteCodes::from(*byte)).collect()
-}
-

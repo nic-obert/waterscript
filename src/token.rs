@@ -58,6 +58,7 @@ pub enum Token {
     In { priority: usize, line: usize },
     Break { priority: usize, line: usize },
     Continue { priority: usize, line: usize },
+    None { priority: usize, line: usize },
 
 }
 
@@ -117,6 +118,7 @@ impl Token {
             Token::In { line, .. } => *line,
             Token::Break { line, .. } => *line,
             Token::Continue { line, .. } => *line,
+            Token::None { line, .. } => *line,
         }
     }
 
@@ -133,7 +135,8 @@ impl Token {
             Token::CloseBrace { .. } |
             Token::CloseSquare { .. } |
             Token::Break { .. } |
-            Token::Continue { .. } 
+            Token::Continue { .. } |
+            Token::None { .. }
             => true,
             
             Token::Plus { .. } |
@@ -231,6 +234,7 @@ impl std::fmt::Display for Token {
             Token::In { .. } => write!(f, "In"),
             Token::Break { .. } => write!(f, "Break"),
             Token::Continue { .. } => write!(f, "Continue"),
+            Token::None { .. } => write!(f, "None"),
         }
     }
 
@@ -251,6 +255,7 @@ pub fn string_to_keyword(string: &str, priority: usize, line: usize) -> Option<T
         "continue" => Some(Token::Continue { priority, line }),
         "true" => Some(Token::Boolean { value: true, priority, line }),
         "false" => Some(Token::Boolean { value: false, priority, line }),
+        "None" => Some(Token::None { priority, line }),
         _ => None,
     }
 }
@@ -282,12 +287,12 @@ fn add_variant_priority(token_variant: &mut Token) {
         // Invalid tokens
         Token::Numeric { .. } => unimplemented!("Numeric token should not be added to the token list"),
 
-        // Value tokens, need to be evaluated first for operators to use them
         Token::Integer { priority, .. } => *priority = Priority::Value as usize,
         Token::Float { priority, .. } => *priority = Priority::Value as usize,
         Token::String { priority, .. } => *priority = Priority::Value as usize,
         Token::Boolean { priority, .. } => *priority = Priority::Value as usize,
         Token::Identifier { priority, .. } => *priority = Priority::Value as usize,
+        Token::None { priority, .. } => *priority = Priority::Value as usize,
         
         // Non-operation tokens
         Token::Comma { priority, .. } => *priority = 0,

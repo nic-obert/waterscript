@@ -39,10 +39,11 @@ pub enum SyntaxNode {
     Boolean { priority: usize, value: bool, line: usize },
     List { priority: usize, elements: Vec<SyntaxNode>, line: usize },
     Identifier { priority: usize, value: String, line: usize },
+    None { priority: usize, line: usize },
 
     // Keywords
     Fun { priority: usize, name: String, params: Vec<String>, body: SyntaxTree, line: usize },
-    Return { priority: usize, value: Option<Box<SyntaxNode>>, line: usize },
+    Return { priority: usize, value: Box<SyntaxNode>, line: usize },
     If { priority: usize, condition: Box<SyntaxNode>, body: SyntaxTree, else_node: Option<Box<SyntaxNode>>, line: usize },
     Elif { priority: usize, condition: Box<SyntaxNode>, body: SyntaxTree, else_node: Option<Box<SyntaxNode>>, line: usize },
     Else { priority: usize, body: SyntaxTree, line: usize },
@@ -101,7 +102,7 @@ static ref BOOLEAN: SyntaxNode = SyntaxNode::Boolean { priority: 0, value: false
 static ref LIST: SyntaxNode = SyntaxNode::List { priority: 0, elements: vec![], line: 0 };
 static ref IDENTIFIER: SyntaxNode = SyntaxNode::Identifier { priority: 0, value: String::new(), line: 0 };
 static ref FUN: SyntaxNode = SyntaxNode::Fun { priority: 0, name: String::new(), params: vec![], body: Default::default(), line: 0 };
-static ref RETURN: SyntaxNode = SyntaxNode::Return { priority: 0, value: None, line: 0 };
+static ref RETURN: SyntaxNode = SyntaxNode::Return { priority: 0, value: placeholder(), line: 0 };
 static ref IF: SyntaxNode = SyntaxNode::If { priority: 0, condition: placeholder(), body: Default::default(), else_node: None, line: 0 };
 static ref ELIF: SyntaxNode = SyntaxNode::Elif { priority: 0, condition: placeholder(), body: Default::default(), else_node: None, line: 0 };
 static ref ELSE: SyntaxNode = SyntaxNode::Else { priority: 0, body: Default::default(), line: 0 };
@@ -146,6 +147,7 @@ impl SyntaxNode {
             SyntaxNode::Boolean { line, .. } => *line,
             SyntaxNode::List { line, .. } => *line,
             SyntaxNode::Identifier { line, .. } => *line,
+            SyntaxNode::None { line, .. } => *line,
             SyntaxNode::Fun { line, .. } => *line,
             SyntaxNode::Return { line, .. } => *line,
             SyntaxNode::If { line, .. } => *line,
@@ -208,6 +210,7 @@ impl SyntaxNode {
             SyntaxNode::Parenthesis { priority, .. } => *priority,
             SyntaxNode::Subscript { priority, .. } => *priority,
             SyntaxNode::Call { priority, .. } => *priority,
+            SyntaxNode::None { priority, .. } => *priority,
         }
     }
 
@@ -258,6 +261,7 @@ impl SyntaxNode {
                 SyntaxNode::Parenthesis { priority, .. } => *priority = 0,
                 SyntaxNode::Subscript { priority, .. } => *priority = 0,
                 SyntaxNode::Call { priority, .. } => *priority = 0,
+                SyntaxNode::None { priority, .. } => *priority = 0,
             }
         }
     }
@@ -306,6 +310,7 @@ impl SyntaxNode {
             SyntaxNode::Parenthesis { .. } => "Parenthesis",
             SyntaxNode::Subscript { .. } => "Subscript",
             SyntaxNode::Call { .. } => "Call",
+            SyntaxNode::None { .. } => "None",
         }
     }
 
@@ -469,6 +474,10 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
 
             Token::Identifier { value, priority, line } => {
                 current_statement.push(SyntaxNode::Identifier { value: value.to_string(), priority: *priority, line: *line });
+            },
+
+            Token::None { priority, line } => {
+                current_statement.push(SyntaxNode::None { priority: *priority, line: *line });
             },
 
             Token::Plus { priority, line } => {
@@ -673,7 +682,7 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
             },
             
             Token::Return { priority, line } => {
-                current_statement.push(SyntaxNode::Return { value: None, priority: *priority, line: *line });
+                current_statement.push(SyntaxNode::Return { value: placeholder(), priority: *priority, line: *line });
             },
             
             Token::If { priority, line } => {
@@ -810,7 +819,9 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
             // Other
             SyntaxNode::Return { value, .. } => {
                 if let Some(node) = extract_node(statement, index + 1) {
-                    *value = Some(Box::new(node));
+                    *value = Box::new(node);
+                } else {
+                    *value = Box::new(SyntaxNode::None { priority: 0, line: old_node.get_line() });
                 }
                 statement[index] = new_node;
             },
