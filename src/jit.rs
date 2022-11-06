@@ -1,6 +1,16 @@
 use crate::syntax_tree::{SyntaxTree, SyntaxNode};
 
 
+enum ChildrenBlocks<'a> {
+    None,
+    Unary { child: Box<CodeBlock<'a>> },
+    Binary { a: Box<CodeBlock<'a>>, b: Box<CodeBlock<'a>> },
+    IfLike { condition: Box<CodeBlock<'a>>, body: Vec<CodeBlock<'a>>, else_block: Option<Box<CodeBlock<'a>>> },
+    ListLike { elements: Vec<CodeBlock<'a>> },
+    LoopLike { condition: Box<CodeBlock<'a>>, body: Vec<CodeBlock<'a>> },
+}
+
+
 /// Represents an executable unit of code.
 struct CodeBlock<'a> {
     /// Needs to keep a reference to the source code for error messages.
@@ -8,7 +18,7 @@ struct CodeBlock<'a> {
     /// The executable part of a code block. If None, the code block hasn't been compiled yet.
     pub code: Option<Vec<u8>>,
     /// The operands the operator needs to execute. They should be executed before the parent operator.
-    pub children: Option<Vec<CodeBlock<'a>>>,
+    pub children: ChildrenBlocks<'a>,
 }
 
 
@@ -42,15 +52,13 @@ impl CodeBlock<'_> {
             SyntaxNode::Subscript { iterable: op1, index: op2, .. } |
             SyntaxNode::NotEqual { left: op1, right: op2, .. } 
              => {
-                let children = vec![
-                    CodeBlock::from_syntax_node(op1, script),
-                    CodeBlock::from_syntax_node(op2, script),
-                ];
-
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: Some(children),
+                    children: ChildrenBlocks::Binary { 
+                        a: Box::new(CodeBlock::from_syntax_node(op1, script)),
+                        b: Box::new(CodeBlock::from_syntax_node(op2, script)),
+                    }
                 }
             },
             
@@ -60,14 +68,12 @@ impl CodeBlock<'_> {
             SyntaxNode::In { iterable: operand, .. } |
             SyntaxNode::Return { value: operand, .. } |
             SyntaxNode::Not { operand, .. } => {
-                let children = vec![
-                    CodeBlock::from_syntax_node(operand, script),
-                ];
-
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: Some(children),
+                    children: ChildrenBlocks::Unary { 
+                        child: Box::new(CodeBlock::from_syntax_node(operand, script)),
+                    }
                 }
             },
             
@@ -86,7 +92,7 @@ impl CodeBlock<'_> {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: None,
+                    children: ChildrenBlocks::None,
                 }
             },
            
@@ -102,40 +108,65 @@ impl CodeBlock<'_> {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: Some(children),
+                    children: ChildrenBlocks::ListLike { elements: children },
                 }
             },
             
             SyntaxNode::Scope { statements: body, .. } |
             SyntaxNode::Else { body, .. } |
             SyntaxNode::Fun { body, .. } => {
-                // Recursively convert the function body to code blocks.
-                let children: Vec<CodeBlock> = body.statements.iter().map(
-                    |statement| CodeBlock::from_syntax_node(statement, script)
-                ).collect();
-
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: Some(children),
+                    children: ChildrenBlocks::ListLike { elements: body.statements.iter().map(
+                        |node| CodeBlock::from_syntax_node(node, script)
+                    ).collect() },
                 }
             },
 
+            SyntaxNode::While { condition: loop_controller, body, .. } |
+            SyntaxNode::For { iterable: loop_controller, body, .. } 
+             => {
+                CodeBlock {
+                    syntax_node: &syntax_node,
+                    code: None,
+                    children: ChildrenBlocks::LoopLike { 
+                        condition: Box::new(CodeBlock::from_syntax_node(loop_controller, script)),
+                        body: body.statements.iter().map(
+                            |node| CodeBlock::from_syntax_node(node, script)
+                        ).collect(),
+                    }
+                }
+            },
             
             SyntaxNode::If { condition, body, else_node, .. } |
             SyntaxNode::Elif { condition, body, else_node, .. }
              => {
-                todo!()
+                CodeBlock {
+                    syntax_node: body.statements.first().unwrap(),
+                    code: None,
+                    children: ChildrenBlocks::IfLike { 
+                        condition: Box::new(CodeBlock::from_syntax_node(condition, script)),
+                        body: body.statements.iter().map(
+                            |node| CodeBlock::from_syntax_node(node, script)
+                        ).collect(),
+                        else_block: else_node.as_ref().map(
+                            |else_node| Box::new(CodeBlock::from_syntax_node(else_node, script))
+                        ),
+                    }
+                }
             },
-            
-            
-            SyntaxNode::While { priority, condition, body, line } => todo!(),
-            SyntaxNode::For { priority, variable, iterable, body, line } => todo!(),
-            
+        
             _ => unreachable!("Syntax node {} cannot be converted into a CodeBlock.", syntax_node.get_name()),
         }
 
     }
+
+
+    pub fn compile(&mut self) {
+        todo!()
+    }
+
 
 }
 
