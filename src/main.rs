@@ -45,7 +45,7 @@ fn main() {
     
     let jit = jit::Jit::from_syntax_tree(&syntax_tree, &script);
 
-    let exit_code = vm::execute(jit);
+    let exit_code = vm::execute(jit, &script);
 
     if !args.quiet {
         println!("Program finished with exit code {} ({})", exit_code, exit_code.name());
