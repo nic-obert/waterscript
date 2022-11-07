@@ -4,10 +4,11 @@
 
 ### Todo
 
-- [ ] create python-like byte code and vm  
+- [ ] add an interactive shell  
 
 ### In Progress
 
+- [ ] create python-like byte code and vm  
 
 ### Done ✓
 

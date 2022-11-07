@@ -1,7 +1,7 @@
 use crate::syntax_tree::{SyntaxTree, SyntaxNode};
 
 
-enum ChildrenBlocks<'a> {
+pub enum ChildrenBlocks<'a> {
     None,
     Unary { child: Box<CodeBlock<'a>> },
     Binary { a: Box<CodeBlock<'a>>, b: Box<CodeBlock<'a>> },
@@ -12,7 +12,7 @@ enum ChildrenBlocks<'a> {
 
 
 /// Represents an executable unit of code.
-struct CodeBlock<'a> {
+pub struct CodeBlock<'a> {
     /// Needs to keep a reference to the source code for error messages.
     pub syntax_node: &'a SyntaxNode,
     /// The executable part of a code block. If None, the code block hasn't been compiled yet.
@@ -172,7 +172,7 @@ impl CodeBlock<'_> {
 
 
 pub struct Jit<'a> {
-    statements: Vec<CodeBlock<'a>>,
+    pub statements: Vec<CodeBlock<'a>>,
 }
 
 
