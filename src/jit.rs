@@ -1,7 +1,7 @@
 use crate::syntax_tree::{SyntaxTree, SyntaxNode};
 
 
-pub enum ChildrenBlocks<'a> {
+pub enum ChildrenBlock<'a> {
     None,
     Unary { child: Box<CodeBlock<'a>> },
     Binary { a: Box<CodeBlock<'a>>, b: Box<CodeBlock<'a>> },
@@ -18,7 +18,7 @@ pub struct CodeBlock<'a> {
     /// The executable part of a code block. If None, the code block hasn't been compiled yet.
     pub code: Option<Vec<u8>>,
     /// The operands the operator needs to execute. They should be executed before the parent operator.
-    pub children: ChildrenBlocks<'a>,
+    pub children: ChildrenBlock<'a>,
 }
 
 
@@ -55,7 +55,7 @@ impl CodeBlock<'_> {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: ChildrenBlocks::Binary { 
+                    children: ChildrenBlock::Binary { 
                         a: Box::new(CodeBlock::from_syntax_node(op1, script)),
                         b: Box::new(CodeBlock::from_syntax_node(op2, script)),
                     }
@@ -71,7 +71,7 @@ impl CodeBlock<'_> {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: ChildrenBlocks::Unary { 
+                    children: ChildrenBlock::Unary { 
                         child: Box::new(CodeBlock::from_syntax_node(operand, script)),
                     }
                 }
@@ -92,7 +92,7 @@ impl CodeBlock<'_> {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: ChildrenBlocks::None,
+                    children: ChildrenBlock::None,
                 }
             },
            
@@ -108,7 +108,7 @@ impl CodeBlock<'_> {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: ChildrenBlocks::ListLike { elements: children },
+                    children: ChildrenBlock::ListLike { elements: children },
                 }
             },
             
@@ -118,7 +118,7 @@ impl CodeBlock<'_> {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: ChildrenBlocks::ListLike { elements: body.statements.iter().map(
+                    children: ChildrenBlock::ListLike { elements: body.statements.iter().map(
                         |node| CodeBlock::from_syntax_node(node, script)
                     ).collect() },
                 }
@@ -130,7 +130,7 @@ impl CodeBlock<'_> {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: ChildrenBlocks::LoopLike { 
+                    children: ChildrenBlock::LoopLike { 
                         condition: Box::new(CodeBlock::from_syntax_node(loop_controller, script)),
                         body: body.statements.iter().map(
                             |node| CodeBlock::from_syntax_node(node, script)
@@ -145,7 +145,7 @@ impl CodeBlock<'_> {
                 CodeBlock {
                     syntax_node: body.statements.first().unwrap(),
                     code: None,
-                    children: ChildrenBlocks::IfLike { 
+                    children: ChildrenBlock::IfLike { 
                         condition: Box::new(CodeBlock::from_syntax_node(condition, script)),
                         body: body.statements.iter().map(
                             |node| CodeBlock::from_syntax_node(node, script)

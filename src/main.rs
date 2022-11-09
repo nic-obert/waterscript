@@ -8,6 +8,7 @@ mod error;
 mod byte_code;
 mod jit;
 mod exit_codes;
+mod utils;
 
 
 use clap::Parser;
