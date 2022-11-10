@@ -1,10 +1,14 @@
+use crate::byte_code::ByteCodes;
 use crate::exit_codes::ExitCode;
 use crate::object::Object;
 use crate::jit::{CodeBlock, ChildrenBlock};
 use crate::utils::get_lines;
+use std::mem;
 
 
 type Scope = Vec<Object>;
+
+const NUMBER_SIZE: usize = 8;
 
 
 struct Function<'a> {
@@ -18,6 +22,14 @@ pub struct Vm<'a> {
     scope_stack: Vec<Scope>,
     functions: Vec<Function<'a>>,
     exit_code: ExitCode,
+}
+
+
+#[inline]
+fn get_number(index: usize, code: &[u8]) -> (i64, usize) {
+    (unsafe {
+        mem::transmute::<[u8; 8], i64>(code[index .. index + NUMBER_SIZE].try_into().unwrap())
+    }, NUMBER_SIZE)
 }
 
 
@@ -103,10 +115,74 @@ impl Vm<'_> {
         }
 
         // Execute the current code block now
-        
 
+        // Compile it if it hasn't been compiled yet
+        let code: &Vec<u8> = if let Some(code) = &block.code {
+            code
+        } else {
+            block.compile();
+            block.code.as_ref().unwrap()
+        };
+          
+        self.execute_code(code, script);
+        
     }
 
+
+    fn execute_code(&mut self, code: &Vec<u8>, script: &str) {
+        let mut index: usize = 0;
+
+        while index < code.len() {
+
+            let instruction: ByteCodes = ByteCodes::from(code[index]);
+            index += 1;
+
+            match instruction {
+
+                ByteCodes::Nop => {},
+
+                ByteCodes::LoadSymbol => {
+                    let (id, to_add) = get_number(index, code);
+                    index += to_add;
+
+                    todo!()
+                },
+
+                ByteCodes::LoadConst => todo!(),
+
+                ByteCodes::PopTop => todo!(),
+
+                ByteCodes::CallFunction => todo!(),
+                
+                ByteCodes::MakeFunction => todo!(),
+                
+                ByteCodes::StoreLocal => todo!(),
+                
+                ByteCodes::Add => todo!(),
+                
+                ByteCodes::Sub => todo!(),
+                
+                ByteCodes::Mul => todo!(),
+                
+                ByteCodes::Div => todo!(),
+                
+                ByteCodes::Mod => todo!(),
+                
+                ByteCodes::Equal => todo!(),
+                
+                ByteCodes::Not => todo!(),
+                
+                ByteCodes::GetIter => todo!(),
+                
+                ByteCodes::Subscript => todo!(),
+                
+                ByteCodes::ReturnValue => todo!(),
+
+            }
+
+        }
+
+    }
 
 }
 
