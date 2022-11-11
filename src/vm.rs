@@ -1,9 +1,37 @@
-use crate::byte_code::ByteCodes;
-use crate::exit_codes::ExitCode;
-use crate::object::Object;
+use crate::byte_code::ByteCode;
+use crate::error_codes::ErrorCode;
+use crate::object::{Object};
 use crate::jit::{CodeBlock, ChildrenBlock};
 use crate::utils::get_lines;
 use std::mem;
+
+
+pub struct VmError {
+    pub code: ErrorCode,
+    pub message: String,
+}
+
+
+impl std::default::Default for VmError {
+    fn default() -> Self {
+        Self {
+            code: ErrorCode::Ok,
+            message: String::new(),
+        }
+    }
+}
+
+
+impl VmError {
+
+    pub fn new(code: ErrorCode, message: String) -> Self {
+        Self {
+            code,
+            message,
+        }
+    }
+
+}
 
 
 type Scope = Vec<Object>;
@@ -21,7 +49,7 @@ struct Function<'a> {
 pub struct Vm<'a> {
     scope_stack: Vec<Scope>,
     functions: Vec<Function<'a>>,
-    exit_code: ExitCode,
+    error_stack: Vec<VmError>,
 }
 
 
@@ -39,7 +67,7 @@ impl Vm<'_> {
         Vm {
             scope_stack: Vec::new(),
             functions: Vec::new(),
-            exit_code: ExitCode::Ok,
+            error_stack: Vec::new(),
         }
     }
 
@@ -49,7 +77,7 @@ impl Vm<'_> {
     }
 
 
-    pub fn execute(&mut self, statements: &mut [CodeBlock], script: &str, verbose: bool) -> ExitCode {
+    pub fn execute(&mut self, statements: &mut [CodeBlock], script: &str, verbose: bool) -> VmError {
         
         if verbose {
             self.run_verbose(statements, script);
@@ -57,7 +85,7 @@ impl Vm<'_> {
             self.run(statements, script);
         }
 
-        self.exit_code
+        self.error_stack.pop().unwrap_or_default()
     }
 
 
@@ -129,54 +157,78 @@ impl Vm<'_> {
     }
 
 
+    fn pop_require(&mut self) -> Object {
+        // Operators should aways have their operands available
+        self.scope_stack.last_mut().unwrap().pop().unwrap()
+    }
+
+
+    fn push(&mut self, obj: Object) {
+        self.scope_stack.last_mut().unwrap().push(obj);
+    }
+
+
+    fn set_error(&mut self, error_code: VmError) {
+        self.error_stack.push(error_code);
+    }
+
+
     fn execute_code(&mut self, code: &Vec<u8>, script: &str) {
         let mut index: usize = 0;
 
         while index < code.len() {
 
-            let instruction: ByteCodes = ByteCodes::from(code[index]);
+            let instruction: ByteCode = ByteCode::from(code[index]);
             index += 1;
 
             match instruction {
 
-                ByteCodes::Nop => {},
+                ByteCode::Nop => {},
 
-                ByteCodes::LoadSymbol => {
+                ByteCode::LoadSymbol => {
                     let (id, to_add) = get_number(index, code);
                     index += to_add;
 
                     todo!()
                 },
 
-                ByteCodes::LoadConst => todo!(),
+                ByteCode::LoadConst => todo!(),
 
-                ByteCodes::PopTop => todo!(),
+                ByteCode::PopTop => todo!(),
 
-                ByteCodes::CallFunction => todo!(),
+                ByteCode::CallFunction => todo!(),
                 
-                ByteCodes::MakeFunction => todo!(),
+                ByteCode::MakeFunction => todo!(),
                 
-                ByteCodes::StoreLocal => todo!(),
+                ByteCode::StoreLocal => todo!(),
                 
-                ByteCodes::Add => todo!(),
+                ByteCode::Add => {
+                    let b = self.pop_require();
+                    let a = self.pop_require();
+
+                    match a + b {
+                        Ok(obj) => self.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
                 
-                ByteCodes::Sub => todo!(),
+                ByteCode::Sub => todo!(),
                 
-                ByteCodes::Mul => todo!(),
+                ByteCode::Mul => todo!(),
                 
-                ByteCodes::Div => todo!(),
+                ByteCode::Div => todo!(),
                 
-                ByteCodes::Mod => todo!(),
+                ByteCode::Mod => todo!(),
                 
-                ByteCodes::Equal => todo!(),
+                ByteCode::Equal => todo!(),
                 
-                ByteCodes::Not => todo!(),
+                ByteCode::Not => todo!(),
                 
-                ByteCodes::GetIter => todo!(),
+                ByteCode::GetIter => todo!(),
                 
-                ByteCodes::Subscript => todo!(),
+                ByteCode::Subscript => todo!(),
                 
-                ByteCodes::ReturnValue => todo!(),
+                ByteCode::ReturnValue => todo!(),
 
             }
 

@@ -1,8 +1,14 @@
+use std::ops::{Add, Sub};
+use crate::error_codes::ErrorCode;
+use crate::vm::VmError;
+
+
+pub type FuncId = usize;
 
 
 #[derive(Debug)]
 pub struct Function {
-    id: u64,
+    id: FuncId,
 }
 
 
@@ -25,13 +31,33 @@ pub enum TypeCode {
 }
 
 
+impl TypeCode {
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            TypeCode::Int => "Int",
+            TypeCode::Float => "Float",
+            TypeCode::String => "String",
+            TypeCode::Boolean => "Boolean",
+            TypeCode::List => "List",
+            TypeCode::None => "None",
+            TypeCode::Function => "Function",
+        }
+    }
+
+}
+
+
+pub type ObjId = usize;
+
+
 #[derive(Debug)]
 pub enum Value {
     Int(i64),
     Float(f64),
     String(String),
     Boolean(bool),
-    List(Vec<Object>),
+    List(Vec<ObjId>),
     None,
     Function(Function),
 }
@@ -39,7 +65,7 @@ pub enum Value {
 
 #[derive(Debug)]
 pub struct Object {
-    pub id: u64,
+    pub id: ObjId,
     pub type_code: TypeCode,
     pub value: Value,
 }
@@ -102,7 +128,7 @@ impl Object {
                 code.extend(value.len().to_le_bytes());
 
                 for element in value {
-                    code.extend(element.id.to_le_bytes());
+                    code.extend(element.to_le_bytes());
                 }
 
                 code
@@ -127,5 +153,112 @@ impl Object {
         }
     }
 
+}
+
+
+type OpResult = Result<Object, VmError>;
+
+
+impl Add for Object {
+    type Output = OpResult;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        match (&self, &rhs) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Int,
+                    value: Value::Int(lhs + rhs),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs + rhs),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs + *rhs as f64),
+                })
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(*lhs as f64 + rhs),
+                })
+            },
+            (Object { type_code: TypeCode::String, value: Value::String(lhs), .. }, Object { type_code: TypeCode::String, value: Value::String(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::String,
+                    value: Value::String(lhs.to_owned() + rhs),
+                })
+            },
+            (Object { type_code: TypeCode::List, value: Value::List(lhs), .. }, Object { type_code: TypeCode::List, value: Value::List(rhs), .. }) => {
+                let mut list = lhs.clone();
+                list.extend(rhs);
+
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::List,
+                    value: Value::List(list),
+                })
+            },
+        
+            _ => Err(VmError::new(
+                ErrorCode::TypeError,
+                format!("Cannot add {} and {}", self.type_code.name(), rhs.type_code.name())
+            )),
+        }
+    }
+
+}
+
+
+impl Sub for Object {
+    type Output = OpResult;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        match (&self, &rhs) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Int,
+                    value: Value::Int(lhs - rhs),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs - rhs),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs - *rhs as f64),
+                })
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(*lhs as f64 - rhs),
+                })
+            },
+        
+            _ => Err(VmError::new(
+                ErrorCode::TypeError,
+                format!("Cannot subtract {} and {}", self.type_code.name(), rhs.type_code.name())
+            )),
+        }
+    }
 }
 

@@ -7,7 +7,7 @@ mod object;
 mod error;
 mod byte_code;
 mod jit;
-mod exit_codes;
+mod error_codes;
 mod utils;
 
 
@@ -48,10 +48,10 @@ fn main() {
 
     let mut vm = vm::Vm::new();
     vm.init();
-    let exit_code = vm.execute(&mut jit.statements, &script, args.verbose);
+    let status = vm.execute(&mut jit.statements, &script, args.verbose);
 
     if !args.quiet {
-        println!("Program finished with exit code {} ({})", exit_code, exit_code.name());
+        println!("Program finished with exit code {} ({})", status.code, status.code.name());
     }
 
 }
