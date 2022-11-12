@@ -185,7 +185,9 @@ impl Vm<'_> {
 
             match instruction {
 
-                ByteCode::Nop => {},
+                ByteCode::Nop => {
+                    // Do nothing
+                },
 
                 ByteCode::LoadSymbol => {
                     let (id, to_add) = get_number(index, code);
@@ -194,9 +196,13 @@ impl Vm<'_> {
                     todo!()
                 },
 
-                ByteCode::LoadConst => todo!(),
+                ByteCode::LoadConst => {
+                    let 
+                },
 
-                ByteCode::PopTop => todo!(),
+                ByteCode::PopTop => {
+                    self.scope_stack.pop();
+                },
 
                 ByteCode::CallFunction => todo!(),
                 
