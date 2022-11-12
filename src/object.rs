@@ -1,4 +1,5 @@
-use std::ops::{Add, Sub};
+use std::ops::{Add, Sub, Mul, Div, Rem, Not};
+
 use crate::error_codes::ErrorCode;
 use crate::vm::VmError;
 
@@ -72,6 +73,15 @@ pub struct Object {
 
 
 impl Object {
+
+    pub fn new(type_code: TypeCode, value: Value) -> Self {
+        Self {
+            id: 0,
+            type_code,
+            value,
+        }
+    }
+
 
     ///*
     /// Object representation:
@@ -257,6 +267,273 @@ impl Sub for Object {
             _ => Err(VmError::new(
                 ErrorCode::TypeError,
                 format!("Cannot subtract {} and {}", self.type_code.name(), rhs.type_code.name())
+            )),
+        }
+    }
+}
+
+
+impl Mul for Object {
+    type Output = OpResult;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        match (&self, &rhs) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Int,
+                    value: Value::Int(lhs * rhs),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs * rhs),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs * *rhs as f64),
+                })
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(*lhs as f64 * rhs),
+                })
+            },
+        
+            _ => Err(VmError::new(
+                ErrorCode::TypeError,
+                format!("Cannot multiply {} and {}", self.type_code.name(), rhs.type_code.name())
+            )),
+        }
+    }
+}
+
+
+impl Div for Object {
+    type Output = OpResult;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        match (&self, &rhs) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                if *rhs == 0 {
+                    return Err(VmError::new(
+                        ErrorCode::ZeroDivision,
+                        "Cannot divide by zero".to_string()
+                    ));
+                }
+                
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Int,
+                    value: Value::Float(*lhs as f64 / *rhs as f64),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                if *rhs == 0.0 {
+                    return Err(VmError::new(
+                        ErrorCode::ZeroDivision,
+                        "Cannot divide by zero".to_string()
+                    ));
+                }
+                
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs / rhs),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                if *rhs == 0 {
+                    return Err(VmError::new(
+                        ErrorCode::ZeroDivision,
+                        "Cannot divide by zero".to_string()
+                    ));
+                }
+                
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs / *rhs as f64),
+                })
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                if *rhs == 0.0 {
+                    return Err(VmError::new(
+                        ErrorCode::ZeroDivision,
+                        "Cannot divide by zero".to_string()
+                    ));
+                }
+                
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(*lhs as f64 / rhs),
+                })
+            },
+        
+            _ => Err(VmError::new(
+                ErrorCode::TypeError,
+                format!("Cannot divide {} and {}", self.type_code.name(), rhs.type_code.name())
+            )),
+        }
+    }
+}
+
+
+impl Rem for Object {
+    type Output = OpResult;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        match (&self, &rhs) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                if *rhs == 0 {
+                    return Err(VmError::new(
+                        ErrorCode::ZeroDivision,
+                        "Cannot divide by zero".to_string()
+                    ));
+                }
+                
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Int,
+                    value: Value::Int(lhs % rhs),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                if *rhs == 0.0 {
+                    return Err(VmError::new(
+                        ErrorCode::ZeroDivision,
+                        "Cannot divide by zero".to_string()
+                    ));
+                }
+                
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs % rhs),
+                })
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                if *rhs == 0 {
+                    return Err(VmError::new(
+                        ErrorCode::ZeroDivision,
+                        "Cannot divide by zero".to_string()
+                    ));
+                }
+                
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(lhs % *rhs as f64),
+                })
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                if *rhs == 0.0 {
+                    return Err(VmError::new(
+                        ErrorCode::ZeroDivision,
+                        "Cannot divide by zero".to_string()
+                    ));
+                }
+                
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Float,
+                    value: Value::Float(*lhs as f64 % rhs),
+                })
+            },
+        
+            _ => Err(VmError::new(
+                ErrorCode::TypeError,
+                format!("Cannot divide {} and {}", self.type_code.name(), rhs.type_code.name())
+            )),
+        }
+    }
+}
+
+
+impl PartialEq for Object {
+    
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                lhs == rhs
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                lhs == rhs
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
+                lhs == &(*rhs as f64)
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
+                &(*lhs as f64) == rhs
+            },
+            (Object { type_code: TypeCode::String, value: Value::String(lhs), .. }, Object { type_code: TypeCode::String, value: Value::String(rhs), .. }) => {
+                lhs == rhs
+            },
+            (Object { type_code: TypeCode::Boolean, value: Value::Boolean(lhs), .. }, Object { type_code: TypeCode::Boolean, value: Value::Boolean(rhs), .. }) => {
+                lhs == rhs
+            },
+            (Object { type_code: TypeCode::None, .. }, Object { type_code: TypeCode::None, .. }) => {
+                true
+            },
+            _ => false,
+        }
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
+
+}
+
+
+impl Not for Object {
+    type Output = OpResult;
+
+    fn not(self) -> Self::Output {
+        match self {
+            Object { type_code: TypeCode::Boolean, value: Value::Boolean(val), .. } => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Boolean,
+                    value: Value::Boolean(!val),
+                })
+            },
+
+            Object { type_code: TypeCode::Int, value: Value::Int(val), .. } => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Boolean,
+                    value: Value::Boolean(val == 0),
+                })
+            },
+
+            Object { type_code: TypeCode::Float, value: Value::Float(val), .. } => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Boolean,
+                    value: Value::Boolean(val == 0.0),
+                })
+            },
+
+            Object { type_code: TypeCode::None, .. } => {
+                Ok(Object {
+                    id: 0,
+                    type_code: TypeCode::Boolean,
+                    value: Value::Boolean(true),
+                })
+            },
+
+            _ => Err(VmError::new(
+                ErrorCode::TypeError,
+                format!("Cannot negate {}", self.type_code.name())
             )),
         }
     }

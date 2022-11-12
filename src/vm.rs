@@ -1,6 +1,6 @@
 use crate::byte_code::ByteCode;
 use crate::error_codes::ErrorCode;
-use crate::object::{Object};
+use crate::object::{Object, TypeCode, Value};
 use crate::jit::{CodeBlock, ChildrenBlock};
 use crate::utils::get_lines;
 use std::mem;
@@ -45,6 +45,8 @@ struct Function<'a> {
     pub body: Vec<CodeBlock<'a>>,
 }
 
+
+// TODO: implement the heap
 
 pub struct Vm<'a> {
     scope_stack: Vec<Scope>,
@@ -212,17 +214,63 @@ impl Vm<'_> {
                     }
                 },
                 
-                ByteCode::Sub => todo!(),
+                ByteCode::Sub => {
+                    let b = self.pop_require();
+                    let a = self.pop_require();
+
+                    match a - b {
+                        Ok(obj) => self.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
                 
-                ByteCode::Mul => todo!(),
+                ByteCode::Mul => {
+                    let b = self.pop_require();
+                    let a = self.pop_require();
+
+                    match a * b {
+                        Ok(obj) => self.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
                 
-                ByteCode::Div => todo!(),
+                ByteCode::Div => {
+                    let b = self.pop_require();
+                    let a = self.pop_require();
+
+                    match a / b {
+                        Ok(obj) => self.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
                 
-                ByteCode::Mod => todo!(),
+                ByteCode::Mod => {
+                    let b = self.pop_require();
+                    let a = self.pop_require();
+
+                    match a % b {
+                        Ok(obj) => self.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
                 
-                ByteCode::Equal => todo!(),
+                ByteCode::Equal => {
+                    let b = self.pop_require();
+                    let a = self.pop_require();
+
+                    self.push(
+                        Object::new(TypeCode::Boolean, Value::Boolean(a == b))
+                    );
+                },
                 
-                ByteCode::Not => todo!(),
+                ByteCode::Not => {
+                    let a = self.pop_require();
+
+                    match !a {
+                        Ok(obj) => self.push(obj),
+                        Err(error_code) => self.set_error(error_code),                        
+                    }
+                },
                 
                 ByteCode::GetIter => todo!(),
                 
