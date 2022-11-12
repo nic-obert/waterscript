@@ -1,7 +1,7 @@
 use std::ops::{Add, Sub, Mul, Div, Rem, Not};
 
 use crate::error_codes::ErrorCode;
-use crate::vm::VmError;
+use crate::vm::{VmError, get_int, get_float};
 
 
 pub type FuncId = usize;
@@ -20,6 +20,9 @@ impl Function {
 }
 
 
+const TYPE_CODE_COUNT: usize = 7;
+
+
 #[derive(Debug, Clone, Copy)]
 pub enum TypeCode {
     Int = 0,
@@ -32,17 +35,33 @@ pub enum TypeCode {
 }
 
 
+const TYPE_CODE_NAMES: [&'static str; TYPE_CODE_COUNT] = [
+    "Int",
+    "Float",
+    "String",
+    "Boolean",
+    "List",
+    "None",
+    "Function",
+];
+
+
 impl TypeCode {
 
     pub fn name(&self) -> &'static str {
-        match self {
-            TypeCode::Int => "Int",
-            TypeCode::Float => "Float",
-            TypeCode::String => "String",
-            TypeCode::Boolean => "Boolean",
-            TypeCode::List => "List",
-            TypeCode::None => "None",
-            TypeCode::Function => "Function",
+        TYPE_CODE_NAMES[*self as usize]
+    }
+
+}
+
+
+impl From<u8> for TypeCode {
+
+    fn from(code: u8) -> Self {
+        if code < TYPE_CODE_COUNT as u8 {
+            unsafe { std::mem::transmute(code) }
+        } else {
+            panic!("Invalid type code: {}", code);
         }
     }
 
@@ -79,6 +98,27 @@ impl Object {
             id: 0,
             type_code,
             value,
+        }
+    }
+
+
+    pub fn from_byte_code(type_code: TypeCode, code: &[u8], index: usize) -> (Object, usize) {
+        match type_code {
+            TypeCode::Int => {
+                let (number, to_add) = get_int(index, code);
+                (Object::new(TypeCode::Int, Value::Int(number)), to_add)
+            },
+            TypeCode::Float => {
+                let (number, to_add) = get_float(index, code);
+                (Object::new(TypeCode::Float, Value::Float(number as f64)), to_add)
+            },
+            TypeCode::String => todo!(),
+            TypeCode::Boolean => todo!(),
+            TypeCode::List => todo!(),
+            TypeCode::None => {
+                (Object::new(TypeCode::None, Value::None), index)
+            },
+            TypeCode::Function => todo!(),
         }
     }
 

@@ -56,9 +56,17 @@ pub struct Vm<'a> {
 
 
 #[inline]
-fn get_number(index: usize, code: &[u8]) -> (i64, usize) {
+pub fn get_int(index: usize, code: &[u8]) -> (i64, usize) {
     (unsafe {
         mem::transmute::<[u8; 8], i64>(code[index .. index + NUMBER_SIZE].try_into().unwrap())
+    }, NUMBER_SIZE)
+}
+
+
+#[inline]
+pub fn get_float(index: usize, code: &[u8]) -> (f64, usize) {
+    (unsafe {
+        mem::transmute::<[u8; 8], f64>(code[index .. index + NUMBER_SIZE].try_into().unwrap())
     }, NUMBER_SIZE)
 }
 
@@ -190,14 +198,20 @@ impl Vm<'_> {
                 },
 
                 ByteCode::LoadSymbol => {
-                    let (id, to_add) = get_number(index, code);
+                    let (id, to_add) = get_int(index, code);
                     index += to_add;
 
                     todo!()
                 },
 
                 ByteCode::LoadConst => {
-                    let 
+                    let type_code = TypeCode::from(code[index]);
+                    index += 1;
+
+                    let (obj, to_add) = Object::from_byte_code(type_code, code, index);
+                    index += to_add;
+
+                    self.push(obj);
                 },
 
                 ByteCode::PopTop => {
