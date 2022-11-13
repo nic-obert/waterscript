@@ -5,6 +5,7 @@ use crate::vm::{VmError, get_int, get_float};
 
 
 pub type FuncId = usize;
+pub const NUMBER_SIZE: usize = 8;
 
 
 #[derive(Debug)]
@@ -85,9 +86,12 @@ pub enum Value {
 
 #[derive(Debug)]
 pub struct Object {
+    /// The id is the index of the object in the heap.
     pub id: ObjId,
     pub type_code: TypeCode,
     pub value: Value,
+    /// Used by the garbage collector to mark objects that are still in use.
+    ref_count: usize,
 }
 
 
@@ -98,7 +102,23 @@ impl Object {
             id: 0,
             type_code,
             value,
+            ref_count: 0,
         }
+    }
+
+
+    pub fn inc_ref_count(&mut self) {
+        self.ref_count += 1;
+    }
+
+
+    pub fn dec_ref_count(&mut self) {
+        self.ref_count -= 1;
+    }
+
+
+    pub fn is_dead(&self) -> bool {
+        self.ref_count == 0
     }
 
 
@@ -214,50 +234,47 @@ impl Add for Object {
 
     fn add(self, rhs: Self) -> Self::Output {
         match (&self, &rhs) {
+
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Int,
-                    value: Value::Int(lhs + rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Int,
+                    Value::Int(lhs + rhs)
+                ))
             },
+
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs + rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(lhs + rhs)
+                ))
             },
+
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs + *rhs as f64),
-                })
+                Ok(Object::new(TypeCode::Float, Value::Float(lhs + *rhs as f64)))
             },
+            
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(*lhs as f64 + rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(*lhs as f64 + rhs)
+                ))
             },
+
             (Object { type_code: TypeCode::String, value: Value::String(lhs), .. }, Object { type_code: TypeCode::String, value: Value::String(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::String,
-                    value: Value::String(lhs.to_owned() + rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::String,
+                    Value::String(lhs.to_owned() + rhs)
+                ))
             },
+            
             (Object { type_code: TypeCode::List, value: Value::List(lhs), .. }, Object { type_code: TypeCode::List, value: Value::List(rhs), .. }) => {
                 let mut list = lhs.clone();
                 list.extend(rhs);
 
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::List,
-                    value: Value::List(list),
-                })
+                Ok(Object::new(
+                    TypeCode::List,
+                    Value::List(list)
+                ))
             },
         
             _ => Err(VmError::new(
@@ -275,33 +292,33 @@ impl Sub for Object {
 
     fn sub(self, rhs: Self) -> Self::Output {
         match (&self, &rhs) {
+
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Int,
-                    value: Value::Int(lhs - rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Int,
+                    Value::Int(lhs - rhs)
+                ))
             },
+
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs - rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(lhs - rhs)
+                ))
             },
+
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs - *rhs as f64),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(lhs - *rhs as f64)
+                ))
             },
+
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(*lhs as f64 - rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(*lhs as f64 - rhs)
+                ))
             },
         
             _ => Err(VmError::new(
@@ -318,33 +335,33 @@ impl Mul for Object {
 
     fn mul(self, rhs: Self) -> Self::Output {
         match (&self, &rhs) {
+            
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Int,
-                    value: Value::Int(lhs * rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Int,
+                    Value::Int(lhs * rhs)
+                ))
             },
+
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs * rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(lhs * rhs)
+                ))
             },
+
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs * *rhs as f64),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(lhs * *rhs as f64)
+                ))
             },
+
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(*lhs as f64 * rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(*lhs as f64 * rhs)
+                ))
             },
         
             _ => Err(VmError::new(
@@ -369,11 +386,10 @@ impl Div for Object {
                     ));
                 }
                 
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Int,
-                    value: Value::Float(*lhs as f64 / *rhs as f64),
-                })
+                Ok(Object::new(
+                    TypeCode::Int,
+                    Value::Int(lhs / rhs)
+                ))
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
@@ -383,11 +399,10 @@ impl Div for Object {
                     ));
                 }
                 
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs / rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(lhs / rhs)
+                ))
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
@@ -397,11 +412,10 @@ impl Div for Object {
                     ));
                 }
                 
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs / *rhs as f64),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(lhs / *rhs as f64)
+                ))
             },
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
@@ -411,11 +425,10 @@ impl Div for Object {
                     ));
                 }
                 
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(*lhs as f64 / rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(*lhs as f64 / rhs)
+                ))
             },
         
             _ => Err(VmError::new(
@@ -440,11 +453,10 @@ impl Rem for Object {
                     ));
                 }
                 
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Int,
-                    value: Value::Int(lhs % rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Int,
+                    Value::Int(lhs % rhs)
+                ))
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
@@ -454,11 +466,10 @@ impl Rem for Object {
                     ));
                 }
                 
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs % rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(lhs % rhs)
+                ))
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
@@ -468,11 +479,10 @@ impl Rem for Object {
                     ));
                 }
                 
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(lhs % *rhs as f64),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(lhs % *rhs as f64)
+                ))
             },
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
@@ -482,11 +492,10 @@ impl Rem for Object {
                     ));
                 }
                 
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Float,
-                    value: Value::Float(*lhs as f64 % rhs),
-                })
+                Ok(Object::new(
+                    TypeCode::Float,
+                    Value::Float(*lhs as f64 % rhs)
+                ))
             },
         
             _ => Err(VmError::new(
@@ -502,27 +511,35 @@ impl PartialEq for Object {
     
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 lhs == rhs
             },
+
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 lhs == rhs
             },
+
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 lhs == &(*rhs as f64)
             },
+
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 &(*lhs as f64) == rhs
             },
+
             (Object { type_code: TypeCode::String, value: Value::String(lhs), .. }, Object { type_code: TypeCode::String, value: Value::String(rhs), .. }) => {
                 lhs == rhs
             },
+
             (Object { type_code: TypeCode::Boolean, value: Value::Boolean(lhs), .. }, Object { type_code: TypeCode::Boolean, value: Value::Boolean(rhs), .. }) => {
                 lhs == rhs
             },
+
             (Object { type_code: TypeCode::None, .. }, Object { type_code: TypeCode::None, .. }) => {
                 true
             },
+
             _ => false,
         }
     }
@@ -540,35 +557,31 @@ impl Not for Object {
     fn not(self) -> Self::Output {
         match self {
             Object { type_code: TypeCode::Boolean, value: Value::Boolean(val), .. } => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Boolean,
-                    value: Value::Boolean(!val),
-                })
+                Ok(Object::new(
+                    TypeCode::Boolean,
+                    Value::Boolean(!val)
+                ))
             },
 
             Object { type_code: TypeCode::Int, value: Value::Int(val), .. } => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Boolean,
-                    value: Value::Boolean(val == 0),
-                })
+                Ok(Object::new(
+                    TypeCode::Boolean,
+                    Value::Boolean(val == 0)
+                ))
             },
 
             Object { type_code: TypeCode::Float, value: Value::Float(val), .. } => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Boolean,
-                    value: Value::Boolean(val == 0.0),
-                })
+                Ok(Object::new(
+                    TypeCode::Boolean,
+                    Value::Boolean(val == 0.0)
+                ))
             },
 
             Object { type_code: TypeCode::None, .. } => {
-                Ok(Object {
-                    id: 0,
-                    type_code: TypeCode::Boolean,
-                    value: Value::Boolean(true),
-                })
+                Ok(Object::new(
+                    TypeCode::Boolean,
+                    Value::Boolean(true)
+                ))
             },
 
             _ => Err(VmError::new(

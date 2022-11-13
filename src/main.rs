@@ -9,6 +9,7 @@ mod byte_code;
 mod jit;
 mod error_codes;
 mod utils;
+mod memory;
 
 
 use clap::Parser;

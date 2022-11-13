@@ -1,8 +1,9 @@
 use crate::byte_code::ByteCode;
 use crate::error_codes::ErrorCode;
-use crate::object::{Object, TypeCode, Value};
+use crate::object::{Object, TypeCode, Value, NUMBER_SIZE};
 use crate::jit::{CodeBlock, ChildrenBlock};
 use crate::utils::get_lines;
+use crate::memory::{Scope, Heap};
 use std::mem;
 
 
@@ -34,11 +35,6 @@ impl VmError {
 }
 
 
-type Scope = Vec<Object>;
-
-const NUMBER_SIZE: usize = 8;
-
-
 struct Function<'a> {
     pub name: String,
     pub parameters: Vec<String>,
@@ -46,19 +42,18 @@ struct Function<'a> {
 }
 
 
-// TODO: implement the heap
-
 pub struct Vm<'a> {
     scope_stack: Vec<Scope>,
     functions: Vec<Function<'a>>,
     error_stack: Vec<VmError>,
+    heap: Heap,
 }
 
 
 #[inline]
 pub fn get_int(index: usize, code: &[u8]) -> (i64, usize) {
     (unsafe {
-        mem::transmute::<[u8; 8], i64>(code[index .. index + NUMBER_SIZE].try_into().unwrap())
+        mem::transmute::<[u8; NUMBER_SIZE], i64>(code[index .. index + NUMBER_SIZE].try_into().unwrap())
     }, NUMBER_SIZE)
 }
 
@@ -66,7 +61,7 @@ pub fn get_int(index: usize, code: &[u8]) -> (i64, usize) {
 #[inline]
 pub fn get_float(index: usize, code: &[u8]) -> (f64, usize) {
     (unsafe {
-        mem::transmute::<[u8; 8], f64>(code[index .. index + NUMBER_SIZE].try_into().unwrap())
+        mem::transmute::<[u8; NUMBER_SIZE], f64>(code[index .. index + NUMBER_SIZE].try_into().unwrap())
     }, NUMBER_SIZE)
 }
 
@@ -78,6 +73,7 @@ impl Vm<'_> {
             scope_stack: Vec::new(),
             functions: Vec::new(),
             error_stack: Vec::new(),
+            heap: Heap::new(),
         }
     }
 
@@ -201,6 +197,7 @@ impl Vm<'_> {
                     let (id, to_add) = get_int(index, code);
                     index += to_add;
 
+                    let symbol = self.heap.get(id as usize);
                     todo!()
                 },
 
