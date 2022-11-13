@@ -1,27 +1,17 @@
 use std::ops::{Add, Sub, Mul, Div, Rem, Not};
 
-use crate::error_codes::ErrorCode;
-use crate::vm::{VmError, get_int, get_float};
+use crate::error_codes::{ErrorCode, RuntimeError};
+use crate::vm::{get_int, get_float, get_string, get_boolean};
 
 
-pub type FuncId = usize;
-pub const NUMBER_SIZE: usize = 8;
-
-
-#[derive(Debug)]
-pub struct Function {
-    id: FuncId,
+pub enum TypeSize {
+    Number = 8,
+    Boolean = 1,
+    None = 0
 }
 
 
-impl Function {
-    pub fn to_byte_code(&self) -> [u8; 8] {
-        self.id.to_le_bytes()
-    }
-}
-
-
-const TYPE_CODE_COUNT: usize = 7;
+const TYPE_CODE_COUNT: usize = 8;
 
 
 #[derive(Debug, Clone, Copy)]
@@ -33,6 +23,7 @@ pub enum TypeCode {
     List,
     None,
     Function,
+    Ref,
 }
 
 
@@ -44,6 +35,7 @@ const TYPE_CODE_NAMES: [&'static str; TYPE_CODE_COUNT] = [
     "List",
     "None",
     "Function",
+    "Ref",
 ];
 
 
@@ -80,7 +72,8 @@ pub enum Value {
     Boolean(bool),
     List(Vec<ObjId>),
     None,
-    Function(Function),
+    Function(ObjId),
+    Ref(*const Object),
 }
 
 
@@ -102,6 +95,16 @@ impl Object {
             id: 0,
             type_code,
             value,
+            ref_count: 0,
+        }
+    }
+
+
+    pub fn new_ref(object_ptr: *const Object) -> Self {
+        Self {
+            id: 0,
+            type_code: TypeCode::Ref,
+            value: Value::Ref(object_ptr),
             ref_count: 0,
         }
     }
@@ -132,13 +135,20 @@ impl Object {
                 let (number, to_add) = get_float(index, code);
                 (Object::new(TypeCode::Float, Value::Float(number as f64)), to_add)
             },
-            TypeCode::String => todo!(),
-            TypeCode::Boolean => todo!(),
+            TypeCode::String => {
+                let (string, to_add) = get_string(index, code);
+                (Object::new(TypeCode::String, Value::String(string)), to_add)
+            },
+            TypeCode::Boolean => {
+                let (boolean, to_add) = get_boolean(index, code);
+                (Object::new(TypeCode::Boolean, Value::Boolean(boolean)), to_add)
+            },
             TypeCode::List => todo!(),
             TypeCode::None => {
-                (Object::new(TypeCode::None, Value::None), index)
+                (Object::new(TypeCode::None, Value::None), TypeSize::None as usize)
             },
             TypeCode::Function => todo!(),
+            TypeCode::Ref => todo!(),
         }
     }
 
@@ -214,7 +224,7 @@ impl Object {
                 let mut code: Vec<u8> = vec![
                     self.type_code as u8,
                 ];
-                code.extend(value.to_byte_code());
+                code.extend(value.to_le_bytes());
 
                 code
             },
@@ -226,7 +236,7 @@ impl Object {
 }
 
 
-type OpResult = Result<Object, VmError>;
+pub type OpResult = Result<Object, RuntimeError>;
 
 
 impl Add for Object {
@@ -277,7 +287,7 @@ impl Add for Object {
                 ))
             },
         
-            _ => Err(VmError::new(
+            _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
                 format!("Cannot add {} and {}", self.type_code.name(), rhs.type_code.name())
             )),
@@ -321,7 +331,7 @@ impl Sub for Object {
                 ))
             },
         
-            _ => Err(VmError::new(
+            _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
                 format!("Cannot subtract {} and {}", self.type_code.name(), rhs.type_code.name())
             )),
@@ -364,7 +374,7 @@ impl Mul for Object {
                 ))
             },
         
-            _ => Err(VmError::new(
+            _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
                 format!("Cannot multiply {} and {}", self.type_code.name(), rhs.type_code.name())
             )),
@@ -380,7 +390,7 @@ impl Div for Object {
         match (&self, &rhs) {
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
-                    return Err(VmError::new(
+                    return Err(RuntimeError::new(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -393,7 +403,7 @@ impl Div for Object {
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
-                    return Err(VmError::new(
+                    return Err(RuntimeError::new(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -406,7 +416,7 @@ impl Div for Object {
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
-                    return Err(VmError::new(
+                    return Err(RuntimeError::new(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -419,7 +429,7 @@ impl Div for Object {
             },
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
-                    return Err(VmError::new(
+                    return Err(RuntimeError::new(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -431,7 +441,7 @@ impl Div for Object {
                 ))
             },
         
-            _ => Err(VmError::new(
+            _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
                 format!("Cannot divide {} and {}", self.type_code.name(), rhs.type_code.name())
             )),
@@ -447,7 +457,7 @@ impl Rem for Object {
         match (&self, &rhs) {
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
-                    return Err(VmError::new(
+                    return Err(RuntimeError::new(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -460,7 +470,7 @@ impl Rem for Object {
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
-                    return Err(VmError::new(
+                    return Err(RuntimeError::new(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -473,7 +483,7 @@ impl Rem for Object {
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
-                    return Err(VmError::new(
+                    return Err(RuntimeError::new(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -486,7 +496,7 @@ impl Rem for Object {
             },
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
-                    return Err(VmError::new(
+                    return Err(RuntimeError::new(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -498,7 +508,7 @@ impl Rem for Object {
                 ))
             },
         
-            _ => Err(VmError::new(
+            _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
                 format!("Cannot divide {} and {}", self.type_code.name(), rhs.type_code.name())
             )),
@@ -584,7 +594,7 @@ impl Not for Object {
                 ))
             },
 
-            _ => Err(VmError::new(
+            _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
                 format!("Cannot negate {}", self.type_code.name())
             )),

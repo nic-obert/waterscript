@@ -1,38 +1,11 @@
 use crate::byte_code::ByteCode;
-use crate::error_codes::ErrorCode;
-use crate::object::{Object, TypeCode, Value, NUMBER_SIZE};
+use crate::error_codes::{ErrorCode, RuntimeError};
+use crate::object::{Object, TypeCode, Value, TypeSize};
 use crate::jit::{CodeBlock, ChildrenBlock};
 use crate::utils::get_lines;
-use crate::memory::{Scope, Heap};
+use crate::memory::{Heap, ScopeStack};
+
 use std::mem;
-
-
-pub struct VmError {
-    pub code: ErrorCode,
-    pub message: String,
-}
-
-
-impl std::default::Default for VmError {
-    fn default() -> Self {
-        Self {
-            code: ErrorCode::Ok,
-            message: String::new(),
-        }
-    }
-}
-
-
-impl VmError {
-
-    pub fn new(code: ErrorCode, message: String) -> Self {
-        Self {
-            code,
-            message,
-        }
-    }
-
-}
 
 
 struct Function<'a> {
@@ -43,26 +16,38 @@ struct Function<'a> {
 
 
 pub struct Vm<'a> {
-    scope_stack: Vec<Scope>,
+    stack: ScopeStack,
     functions: Vec<Function<'a>>,
-    error_stack: Vec<VmError>,
+    error_stack: Vec<RuntimeError>,
     heap: Heap,
 }
 
 
-#[inline]
 pub fn get_int(index: usize, code: &[u8]) -> (i64, usize) {
     (unsafe {
-        mem::transmute::<[u8; NUMBER_SIZE], i64>(code[index .. index + NUMBER_SIZE].try_into().unwrap())
-    }, NUMBER_SIZE)
+        mem::transmute::<[u8; TypeSize::Number as usize], i64>(code[index .. index + TypeSize::Number as usize].try_into().unwrap())
+    }, TypeSize::Number as usize)
 }
 
 
-#[inline]
 pub fn get_float(index: usize, code: &[u8]) -> (f64, usize) {
     (unsafe {
-        mem::transmute::<[u8; NUMBER_SIZE], f64>(code[index .. index + NUMBER_SIZE].try_into().unwrap())
-    }, NUMBER_SIZE)
+        mem::transmute::<[u8; TypeSize::Number as usize], f64>(code[index .. index + TypeSize::Number as usize].try_into().unwrap())
+    }, TypeSize::Number as usize)
+}
+
+
+pub fn get_string(mut index: usize, code: &[u8]) -> (String, usize) {
+    let (length, to_add) = get_int(index, code);
+    index += to_add;
+
+    let string = String::from_utf8(code[index .. index + length as usize].to_vec()).unwrap();
+    (string, length as usize + to_add)
+}
+
+
+pub fn get_boolean(index: usize, code: &[u8]) -> (bool, usize) {
+    (code[index] != 0, TypeSize::Boolean as usize)
 }
 
 
@@ -70,7 +55,7 @@ impl Vm<'_> {
 
     pub fn new() -> Vm<'static> {
         Vm {
-            scope_stack: Vec::new(),
+            stack: ScopeStack::new(),
             functions: Vec::new(),
             error_stack: Vec::new(),
             heap: Heap::new(),
@@ -78,12 +63,7 @@ impl Vm<'_> {
     }
 
 
-    pub fn init(&mut self) {
-        self.scope_stack.push(Scope::new());
-    }
-
-
-    pub fn execute(&mut self, statements: &mut [CodeBlock], script: &str, verbose: bool) -> VmError {
+    pub fn execute(&mut self, statements: &mut [CodeBlock], script: &str, verbose: bool) -> RuntimeError {
         
         if verbose {
             self.run_verbose(statements, script);
@@ -163,19 +143,24 @@ impl Vm<'_> {
     }
 
 
-    fn pop_require(&mut self) -> Object {
-        // Operators should aways have their operands available
-        self.scope_stack.last_mut().unwrap().pop().unwrap()
-    }
-
-
-    fn push(&mut self, obj: Object) {
-        self.scope_stack.last_mut().unwrap().push(obj);
-    }
-
-
-    fn set_error(&mut self, error_code: VmError) {
+    fn set_error(&mut self, error_code: RuntimeError) {
         self.error_stack.push(error_code);
+    }
+
+
+    /// Return the referenced object if the given object is a reference
+    /// Return the object itself otherwise
+    fn deref_object<'a>(&'a self, object_ref: &'a Object) -> &Object {
+        match object_ref {
+            Object { type_code: TypeCode::Ref, value: Value::Ref(object_ptr), .. } => {
+                unsafe {
+                    &**object_ptr
+                }
+            },
+            _ => {
+                object_ref
+            }
+        }
     }
 
 
@@ -197,8 +182,15 @@ impl Vm<'_> {
                     let (id, to_add) = get_int(index, code);
                     index += to_add;
 
-                    let symbol = self.heap.get(id as usize);
-                    todo!()
+                    match self.heap.get_ref(id as usize) {
+                        Ok(obj_ref) => {
+                            self.stack.push(obj_ref);
+                        },
+                        Err(error_code) => {
+                            self.set_error(error_code);
+                            return;
+                        }
+                    }
                 },
 
                 ByteCode::LoadConst => {
@@ -208,11 +200,11 @@ impl Vm<'_> {
                     let (obj, to_add) = Object::from_byte_code(type_code, code, index);
                     index += to_add;
 
-                    self.push(obj);
+                    self.stack.push(obj);
                 },
 
                 ByteCode::PopTop => {
-                    self.scope_stack.pop();
+                    self.stack.pop_scope();
                 },
 
                 ByteCode::CallFunction => todo!(),
@@ -222,69 +214,72 @@ impl Vm<'_> {
                 ByteCode::StoreLocal => todo!(),
                 
                 ByteCode::Add => {
-                    let b = self.pop_require();
-                    let a = self.pop_require();
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
+
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
 
                     match a + b {
-                        Ok(obj) => self.push(obj),
+                        Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
                 },
                 
                 ByteCode::Sub => {
-                    let b = self.pop_require();
-                    let a = self.pop_require();
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
 
                     match a - b {
-                        Ok(obj) => self.push(obj),
+                        Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
                 },
                 
                 ByteCode::Mul => {
-                    let b = self.pop_require();
-                    let a = self.pop_require();
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
 
                     match a * b {
-                        Ok(obj) => self.push(obj),
+                        Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
                 },
                 
                 ByteCode::Div => {
-                    let b = self.pop_require();
-                    let a = self.pop_require();
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
 
                     match a / b {
-                        Ok(obj) => self.push(obj),
+                        Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
                 },
                 
                 ByteCode::Mod => {
-                    let b = self.pop_require();
-                    let a = self.pop_require();
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
 
                     match a % b {
-                        Ok(obj) => self.push(obj),
+                        Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
                 },
                 
                 ByteCode::Equal => {
-                    let b = self.pop_require();
-                    let a = self.pop_require();
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
 
-                    self.push(
+                    self.stack.push(
                         Object::new(TypeCode::Boolean, Value::Boolean(a == b))
                     );
                 },
                 
                 ByteCode::Not => {
-                    let a = self.pop_require();
+                    let a = self.stack.pop_require();
 
                     match !a {
-                        Ok(obj) => self.push(obj),
+                        Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),                        
                     }
                 },

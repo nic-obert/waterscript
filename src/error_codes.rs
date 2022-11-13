@@ -1,10 +1,39 @@
 
 
+pub struct RuntimeError {
+    pub code: ErrorCode,
+    pub message: String,
+}
+
+
+impl RuntimeError {
+
+    pub fn new(code: ErrorCode, message: String) -> Self {
+        Self {
+            code,
+            message,
+        }
+    }
+
+}
+
+
+impl std::default::Default for RuntimeError {
+    fn default() -> Self {
+        Self {
+            code: ErrorCode::Ok,
+            message: String::new(),
+        }
+    }
+}
+
+
 #[derive(Clone, Copy)]
 pub enum ErrorCode {
     Ok = 0,
     TypeError,
     ZeroDivision,
+    InvalidMemoryAccess,
 }
 
 
@@ -22,6 +51,7 @@ impl ErrorCode {
             ErrorCode::Ok => "Ok",
             ErrorCode::TypeError => "TypeError",
             ErrorCode::ZeroDivision => "ZeroDivision",
+            ErrorCode::InvalidMemoryAccess => "InvalidMemoryAccess",
         }
     }
 

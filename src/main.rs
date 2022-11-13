@@ -48,7 +48,6 @@ fn main() {
     let mut jit = jit::Jit::from_syntax_tree(&syntax_tree, &script);
 
     let mut vm = vm::Vm::new();
-    vm.init();
     let status = vm.execute(&mut jit.statements, &script, args.verbose);
 
     if !args.quiet {
