@@ -1,5 +1,3 @@
-use std::ops::{Add, Sub, Mul, Div, Rem, Not};
-
 use crate::error_codes::{ErrorCode, RuntimeError};
 use crate::vm::{get_int, get_float, get_string, get_boolean};
 
@@ -9,6 +7,9 @@ pub enum TypeSize {
     Boolean = 1,
     None = 0
 }
+
+
+pub type OpResult = Result<Object, RuntimeError>;
 
 
 const TYPE_CODE_COUNT: usize = 8;
@@ -233,17 +234,9 @@ impl Object {
         }
     }
 
-}
 
-
-pub type OpResult = Result<Object, RuntimeError>;
-
-
-impl Add for Object {
-    type Output = OpResult;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        match (&self, &rhs) {
+    pub fn add(lhs: &Object, rhs: &Object) -> OpResult {
+        match (lhs, rhs) {
 
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 Ok(Object::new(
@@ -289,19 +282,14 @@ impl Add for Object {
         
             _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
-                format!("Cannot add {} and {}", self.type_code.name(), rhs.type_code.name())
+                format!("Cannot add {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
         }
     }
 
-}
 
-
-impl Sub for Object {
-    type Output = OpResult;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        match (&self, &rhs) {
+    pub fn sub(lhs: &Object, rhs: &Object) -> OpResult {
+        match (lhs, rhs) {
 
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 Ok(Object::new(
@@ -333,18 +321,14 @@ impl Sub for Object {
         
             _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
-                format!("Cannot subtract {} and {}", self.type_code.name(), rhs.type_code.name())
+                format!("Cannot subtract {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
         }
     }
-}
 
 
-impl Mul for Object {
-    type Output = OpResult;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        match (&self, &rhs) {
+    pub fn mul(lhs: &Object, rhs: &Object) -> OpResult {
+        match (lhs, rhs) {
             
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 Ok(Object::new(
@@ -376,18 +360,14 @@ impl Mul for Object {
         
             _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
-                format!("Cannot multiply {} and {}", self.type_code.name(), rhs.type_code.name())
+                format!("Cannot multiply {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
         }
     }
-}
 
 
-impl Div for Object {
-    type Output = OpResult;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        match (&self, &rhs) {
+    pub fn div(lhs: &Object, rhs: &Object) -> OpResult {
+        match (lhs, rhs) {
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
                     return Err(RuntimeError::new(
@@ -443,18 +423,14 @@ impl Div for Object {
         
             _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
-                format!("Cannot divide {} and {}", self.type_code.name(), rhs.type_code.name())
+                format!("Cannot divide {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
         }
     }
-}
 
 
-impl Rem for Object {
-    type Output = OpResult;
-
-    fn rem(self, rhs: Self) -> Self::Output {
-        match (&self, &rhs) {
+    pub fn rem(lhs: &Object, rhs: &Object) -> OpResult {
+        match (lhs, rhs) {
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
                     return Err(RuntimeError::new(
@@ -510,17 +486,14 @@ impl Rem for Object {
         
             _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
-                format!("Cannot divide {} and {}", self.type_code.name(), rhs.type_code.name())
+                format!("Cannot divide {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
         }
-    }
-}
+    }   
 
-
-impl PartialEq for Object {
     
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
+    pub fn eq(lhs: &Object, rhs: &Object) -> bool {
+        match (lhs, rhs) {
 
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 lhs == rhs
@@ -554,18 +527,13 @@ impl PartialEq for Object {
         }
     }
 
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
+    pub fn ne(lhs: &Object, rhs: &Object) -> bool {
+        !Object::eq(lhs, rhs)
     }
 
-}
 
-
-impl Not for Object {
-    type Output = OpResult;
-
-    fn not(self) -> Self::Output {
-        match self {
+    pub fn not(obj: &Object) -> OpResult {
+        match obj {
             Object { type_code: TypeCode::Boolean, value: Value::Boolean(val), .. } => {
                 Ok(Object::new(
                     TypeCode::Boolean,
@@ -576,14 +544,14 @@ impl Not for Object {
             Object { type_code: TypeCode::Int, value: Value::Int(val), .. } => {
                 Ok(Object::new(
                     TypeCode::Boolean,
-                    Value::Boolean(val == 0)
+                    Value::Boolean(*val == 0)
                 ))
             },
 
             Object { type_code: TypeCode::Float, value: Value::Float(val), .. } => {
                 Ok(Object::new(
                     TypeCode::Boolean,
-                    Value::Boolean(val == 0.0)
+                    Value::Boolean(*val == 0.0)
                 ))
             },
 
@@ -596,9 +564,10 @@ impl Not for Object {
 
             _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
-                format!("Cannot negate {}", self.type_code.name())
+                format!("Cannot negate {}", obj.type_code.name())
             )),
         }
     }
+
 }
 

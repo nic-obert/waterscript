@@ -63,22 +63,29 @@ impl Heap {
     }
 
 
-    pub fn get_ref(&self, index: usize) -> OpResult {
-        if let Some(obj) = self.objects.get(index) {
+    pub fn get_ref(&self, id: usize) -> OpResult {
+        if let Some(obj) = self.objects.get(id) {
             Ok(Object::new_ref(obj))
         } else {
             Err(RuntimeError::new(
                 ErrorCode::InvalidMemoryAccess,
-                format!("Invalid memory access at address {}", index),
+                format!("Invalid memory access at address {}", id),
             ))
         }
     }
 
 
-    /// Store the object in the heap and give it a memory id.
-    pub fn store(&mut self, mut object: Object) {
+    /// Store the object in a new heap location and give it a memory id.
+    pub fn store_new(&mut self, mut object: Object) {
         object.id = self.objects.len();
         self.objects.push(object);
+    }
+
+
+    /// Store the object in the heap location with the given id and update the object id.
+    pub fn set(&mut self, mut object: Object, id: usize) {
+        object.id = id;
+        self.objects[id] = object;
     }
 
 }

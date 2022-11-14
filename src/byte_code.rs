@@ -1,7 +1,7 @@
 
 
 // Max is 256
-const BYTE_CODE_COUNT: usize = 17;
+const BYTE_CODE_COUNT: usize = 18;
 
 
 #[derive(Clone, Copy)]
@@ -10,10 +10,10 @@ pub enum ByteCode {
     Nop,
     LoadSymbol,
     LoadConst,
-    PopTop,
+    PopScope,
     CallFunction,
     MakeFunction,
-    StoreLocal,
+    StoreTop,
     Add,
     Sub,
     Mul,
@@ -24,6 +24,7 @@ pub enum ByteCode {
     GetIter,
     Subscript,
     ReturnValue,
+    PushScope,
 
 }
 
@@ -32,10 +33,10 @@ const BYTE_CODE_NAMES: [&str; BYTE_CODE_COUNT] = [
     "Nop",
     "LoadSymbol",
     "LoadConst",
-    "PopTop",
+    "PopScope",
     "CallFunction",
     "MakeFunction",
-    "StoreLocal",
+    "StoreTop",
     "Add",
     "Sub",
     "Mul",
@@ -46,6 +47,7 @@ const BYTE_CODE_NAMES: [&str; BYTE_CODE_COUNT] = [
     "GetIter",
     "Subscript",
     "ReturnValue",
+    "PushScope",
 ];
 
 

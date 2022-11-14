@@ -203,7 +203,7 @@ impl Vm<'_> {
                     self.stack.push(obj);
                 },
 
-                ByteCode::PopTop => {
+                ByteCode::PopScope => {
                     self.stack.pop_scope();
                 },
 
@@ -211,7 +211,13 @@ impl Vm<'_> {
                 
                 ByteCode::MakeFunction => todo!(),
                 
-                ByteCode::StoreLocal => todo!(),
+                ByteCode::StoreTop => {
+                    let (id, to_add) = get_int(index, code);
+                    index += to_add;
+
+                    let obj = self.stack.pop_require();
+                    self.heap.set(obj, id as usize);
+                },
                 
                 ByteCode::Add => {
                     let b = self.stack.pop_require();
@@ -220,7 +226,7 @@ impl Vm<'_> {
                     let a = self.deref_object(&a);
                     let b = self.deref_object(&b);
 
-                    match a + b {
+                    match Object::add(a, b) {
                         Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
@@ -230,7 +236,10 @@ impl Vm<'_> {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    match a - b {
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::sub(a, b) {
                         Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
@@ -240,7 +249,10 @@ impl Vm<'_> {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    match a * b {
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::mul(a, b) {
                         Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
@@ -250,7 +262,10 @@ impl Vm<'_> {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    match a / b {
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::div(a, b) {
                         Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
@@ -260,7 +275,10 @@ impl Vm<'_> {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    match a % b {
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::rem(a, b) {
                         Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),
                     }
@@ -270,15 +288,20 @@ impl Vm<'_> {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
                     self.stack.push(
-                        Object::new(TypeCode::Boolean, Value::Boolean(a == b))
+                        Object::new(TypeCode::Boolean, Value::Boolean(Object::eq(a, b)))
                     );
                 },
                 
                 ByteCode::Not => {
                     let a = self.stack.pop_require();
 
-                    match !a {
+                    let a = self.deref_object(&a);
+
+                    match Object::not(a) {
                         Ok(obj) => self.stack.push(obj),
                         Err(error_code) => self.set_error(error_code),                        
                     }
@@ -289,6 +312,10 @@ impl Vm<'_> {
                 ByteCode::Subscript => todo!(),
                 
                 ByteCode::ReturnValue => todo!(),
+
+                ByteCode::PushScope => {
+                    self.stack.push_scope();
+                },
 
             }
 
