@@ -24,6 +24,13 @@ pub struct CodeBlock<'a> {
 
 impl CodeBlock<'_> {
 
+    pub fn is_compiled(&self) -> bool {
+        match self.code {
+            Some(_) => true,
+            None => false
+        }
+    }
+
     /// Recursively builds a code block tree from a syntax node.
     pub fn from_syntax_node<'a>(syntax_node: &'a SyntaxNode, script: &'a str) -> CodeBlock<'a> {
         
@@ -163,8 +170,17 @@ impl CodeBlock<'_> {
     }
 
 
+    /// Compile the code block into byte code.
+    /// Doesn't check if the block is already compiled.
+    /// When this function is called, the children should already be compiled.
     pub fn compile(&mut self) {
-        todo!()
+        let mut code: Vec<u8> = Vec::new();
+
+        // Compile the syntax node into byte code
+        // Don't care about compiling children, they should already be compiled
+        
+
+        self.code = Some(code);
     }
 
 

@@ -1,7 +1,7 @@
 
 
 // Max is 256
-const BYTE_CODE_COUNT: usize = 18;
+const BYTE_CODE_COUNT: usize = 19;
 
 
 #[derive(Clone, Copy)]
@@ -20,6 +20,7 @@ pub enum ByteCode {
     Div,
     Mod,
     Equal,
+    NotEqual,
     Not,
     GetIter,
     Subscript,
@@ -43,6 +44,7 @@ const BYTE_CODE_NAMES: [&str; BYTE_CODE_COUNT] = [
     "Div",
     "Mod",
     "Equal",
+    "NotEqual",
     "Not",
     "GetIter",
     "Subscript",

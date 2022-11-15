@@ -107,7 +107,9 @@ impl Vm<'_> {
         
         // Recursively execute the children first, if any
         match &mut block.children {
-            ChildrenBlock::None => {},
+            ChildrenBlock::None => {
+                // Do nothing, there are no children to execute
+            },
             ChildrenBlock::Unary { child } => {
                 self.execute_block(child, script);
             },
@@ -128,17 +130,12 @@ impl Vm<'_> {
             },
         }
 
-        // Execute the current code block now
-
         // Compile it if it hasn't been compiled yet
-        let code: &Vec<u8> = if let Some(code) = &block.code {
-            code
-        } else {
-            block.compile();
-            block.code.as_ref().unwrap()
-        };
+        if !block.is_compiled() {
+            block.compile()
+        }
           
-        self.execute_code(code, script);
+        self.execute_code(block.code.as_ref().unwrap(), script);
         
     }
 
@@ -207,9 +204,23 @@ impl Vm<'_> {
                     self.stack.pop_scope();
                 },
 
-                ByteCode::CallFunction => todo!(),
+                ByteCode::CallFunction => {
+                    /*
+                        Function call byte code structure:
+                        - function id: 8 bytes
+                    */
+                    todo!()
+                },
                 
-                ByteCode::MakeFunction => todo!(),
+                ByteCode::MakeFunction => {
+                    /*
+                        Function byte code structure:
+                        - id: 8 bytes
+                        - arg count: 1 byte
+                        - arg id list: arg count * 8 bytes
+                    */ 
+                    todo!()
+                },
                 
                 ByteCode::StoreTop => {
                     let (id, to_add) = get_int(index, code);
@@ -293,6 +304,18 @@ impl Vm<'_> {
 
                     self.stack.push(
                         Object::new(TypeCode::Boolean, Value::Boolean(Object::eq(a, b)))
+                    );
+                },
+
+                ByteCode::NotEqual => {
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
+
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    self.stack.push(
+                        Object::new(TypeCode::Boolean, Value::Boolean(Object::ne(a, b)))
                     );
                 },
                 
