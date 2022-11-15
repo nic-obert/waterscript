@@ -1,7 +1,7 @@
 use crate::syntax_tree::{SyntaxTree, SyntaxNode};
 use crate::op_code::OpCode;
 use crate::object::TypeCode;
-use crate::byte_code::ByteCode;
+use crate::byte_code::{ByteCode, self};
 
 
 pub enum ChildrenBlock<'a> {
@@ -96,16 +96,25 @@ impl CodeBlock<'_> {
             SyntaxNode::Identifier { .. } |
             SyntaxNode::None { .. } |
             SyntaxNode::Break { .. } |
-            SyntaxNode::Continue { .. } |
-            SyntaxNode::List { .. } 
-            => {
+            SyntaxNode::Continue { .. } 
+             => {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
                     children: ChildrenBlock::None,
                 }
             },
-           
+            
+            SyntaxNode::List { elements, .. } => {
+                CodeBlock {
+                    syntax_node: &syntax_node,
+                    code: None,
+                    children: ChildrenBlock::ListLike { elements: elements.iter().map(
+                        |element| CodeBlock::from_syntax_node(element, script)
+                    ).collect() }
+                }
+            },
+
             SyntaxNode::Call { function, arguments, .. } => {
                 let mut children = vec![
                     CodeBlock::from_syntax_node(function, script),
@@ -213,25 +222,17 @@ impl CodeBlock<'_> {
             SyntaxNode::Subscript { priority, iterable, index, line } => todo!(),
             SyntaxNode::Call { priority, function, arguments, line } => todo!(),
             SyntaxNode::Int { value, .. } => {
-                let mut code: ByteCode = vec![
-                    OpCode::LoadConst as u8,
-                    TypeCode::Int as u8,
-                ];
-                code.extend(value.to_le_bytes());
-                code
+                byte_code::from_int(*value)
             },
             SyntaxNode::Float { value, .. } => {
-                let mut code: ByteCode = vec![
-                    OpCode::LoadConst as u8,
-                    TypeCode::Float as u8,
-                ];
-                code.extend(value.to_le_bytes());
-                code
+                byte_code::from_float(*value)
             },
             SyntaxNode::String { value, .. } => {
-                todo!()
+                byte_code::from_string(value)
             },
-            SyntaxNode::Boolean { priority, value, line } => todo!(),
+            SyntaxNode::Boolean { value, .. } => {
+                byte_code::from_boolean(*value)
+            },
             SyntaxNode::List { priority, elements, line } => todo!(),
             SyntaxNode::Identifier { priority, value, line } => todo!(),
             SyntaxNode::None { priority, line } => todo!(),
