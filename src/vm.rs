@@ -1,11 +1,11 @@
-use crate::byte_code::ByteCode;
-use crate::error_codes::{ErrorCode, RuntimeError};
-use crate::object::{Object, TypeCode, Value, TypeSize};
+use crate::op_code::OpCode;
+use crate::error_codes::RuntimeError;
+use crate::object::{Object, TypeCode, Value};
 use crate::jit::{CodeBlock, ChildrenBlock};
 use crate::utils::get_lines;
 use crate::memory::{Heap, ScopeStack};
-
-use std::mem;
+use crate::byte_code::ByteCode;
+use crate::byte_code;
 
 
 struct Function<'a> {
@@ -20,34 +20,6 @@ pub struct Vm<'a> {
     functions: Vec<Function<'a>>,
     error_stack: Vec<RuntimeError>,
     heap: Heap,
-}
-
-
-pub fn get_int(index: usize, code: &[u8]) -> (i64, usize) {
-    (unsafe {
-        mem::transmute::<[u8; TypeSize::Number as usize], i64>(code[index .. index + TypeSize::Number as usize].try_into().unwrap())
-    }, TypeSize::Number as usize)
-}
-
-
-pub fn get_float(index: usize, code: &[u8]) -> (f64, usize) {
-    (unsafe {
-        mem::transmute::<[u8; TypeSize::Number as usize], f64>(code[index .. index + TypeSize::Number as usize].try_into().unwrap())
-    }, TypeSize::Number as usize)
-}
-
-
-pub fn get_string(mut index: usize, code: &[u8]) -> (String, usize) {
-    let (length, to_add) = get_int(index, code);
-    index += to_add;
-
-    let string = String::from_utf8(code[index .. index + length as usize].to_vec()).unwrap();
-    (string, length as usize + to_add)
-}
-
-
-pub fn get_boolean(index: usize, code: &[u8]) -> (bool, usize) {
-    (code[index] != 0, TypeSize::Boolean as usize)
 }
 
 
@@ -161,22 +133,22 @@ impl Vm<'_> {
     }
 
 
-    fn execute_code(&mut self, code: &Vec<u8>, script: &str) {
+    fn execute_code(&mut self, code: &ByteCode, script: &str) {
         let mut index: usize = 0;
 
         while index < code.len() {
 
-            let instruction: ByteCode = ByteCode::from(code[index]);
+            let instruction: OpCode = OpCode::from(code[index]);
             index += 1;
 
             match instruction {
 
-                ByteCode::Nop => {
+                OpCode::Nop => {
                     // Do nothing
                 },
 
-                ByteCode::LoadSymbol => {
-                    let (id, to_add) = get_int(index, code);
+                OpCode::LoadSymbol => {
+                    let (id, to_add) = byte_code::get_int(index, code);
                     index += to_add;
 
                     match self.heap.get_ref(id as usize) {
@@ -190,7 +162,7 @@ impl Vm<'_> {
                     }
                 },
 
-                ByteCode::LoadConst => {
+                OpCode::LoadConst => {
                     let type_code = TypeCode::from(code[index]);
                     index += 1;
 
@@ -200,11 +172,11 @@ impl Vm<'_> {
                     self.stack.push(obj);
                 },
 
-                ByteCode::PopScope => {
+                OpCode::PopScope => {
                     self.stack.pop_scope();
                 },
 
-                ByteCode::CallFunction => {
+                OpCode::CallFunction => {
                     /*
                         Function call byte code structure:
                         - function id: 8 bytes
@@ -212,7 +184,7 @@ impl Vm<'_> {
                     todo!()
                 },
                 
-                ByteCode::MakeFunction => {
+                OpCode::MakeFunction => {
                     /*
                         Function byte code structure:
                         - id: 8 bytes
@@ -222,15 +194,15 @@ impl Vm<'_> {
                     todo!()
                 },
                 
-                ByteCode::StoreTop => {
-                    let (id, to_add) = get_int(index, code);
+                OpCode::StoreTop => {
+                    let (id, to_add) = byte_code::get_int(index, code);
                     index += to_add;
 
                     let obj = self.stack.pop_require();
                     self.heap.set(obj, id as usize);
                 },
                 
-                ByteCode::Add => {
+                OpCode::Add => {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
@@ -243,7 +215,7 @@ impl Vm<'_> {
                     }
                 },
                 
-                ByteCode::Sub => {
+                OpCode::Sub => {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
@@ -256,7 +228,7 @@ impl Vm<'_> {
                     }
                 },
                 
-                ByteCode::Mul => {
+                OpCode::Mul => {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
@@ -269,7 +241,7 @@ impl Vm<'_> {
                     }
                 },
                 
-                ByteCode::Div => {
+                OpCode::Div => {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
@@ -282,7 +254,7 @@ impl Vm<'_> {
                     }
                 },
                 
-                ByteCode::Mod => {
+                OpCode::Mod => {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
@@ -295,7 +267,7 @@ impl Vm<'_> {
                     }
                 },
                 
-                ByteCode::Equal => {
+                OpCode::Equal => {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
@@ -307,7 +279,7 @@ impl Vm<'_> {
                     );
                 },
 
-                ByteCode::NotEqual => {
+                OpCode::NotEqual => {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
@@ -319,7 +291,7 @@ impl Vm<'_> {
                     );
                 },
                 
-                ByteCode::Not => {
+                OpCode::Not => {
                     let a = self.stack.pop_require();
 
                     let a = self.deref_object(&a);
@@ -330,13 +302,13 @@ impl Vm<'_> {
                     }
                 },
                 
-                ByteCode::GetIter => todo!(),
+                OpCode::GetIter => todo!(),
                 
-                ByteCode::Subscript => todo!(),
+                OpCode::Subscript => todo!(),
                 
-                ByteCode::ReturnValue => todo!(),
+                OpCode::ReturnValue => todo!(),
 
-                ByteCode::PushScope => {
+                OpCode::PushScope => {
                     self.stack.push_scope();
                 },
 

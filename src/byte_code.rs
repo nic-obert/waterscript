@@ -1,73 +1,70 @@
+use std::mem;
+use crate::object::{TypeSize, TypeCode};
 
 
-// Max is 256
-const BYTE_CODE_COUNT: usize = 19;
+pub type ByteCode = Vec<u8>;
 
 
-#[derive(Clone, Copy)]
-pub enum ByteCode {
-
-    Nop,
-    LoadSymbol,
-    LoadConst,
-    PopScope,
-    CallFunction,
-    MakeFunction,
-    StoreTop,
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    Equal,
-    NotEqual,
-    Not,
-    GetIter,
-    Subscript,
-    ReturnValue,
-    PushScope,
-
+pub fn from_int(value: i64) -> ByteCode {
+    let mut bytes = vec![
+        TypeCode::Int as u8
+    ];
+    bytes.extend(value.to_le_bytes());
+    bytes
 }
 
 
-const BYTE_CODE_NAMES: [&str; BYTE_CODE_COUNT] = [
-    "Nop",
-    "LoadSymbol",
-    "LoadConst",
-    "PopScope",
-    "CallFunction",
-    "MakeFunction",
-    "StoreTop",
-    "Add",
-    "Sub",
-    "Mul",
-    "Div",
-    "Mod",
-    "Equal",
-    "NotEqual",
-    "Not",
-    "GetIter",
-    "Subscript",
-    "ReturnValue",
-    "PushScope",
-];
-
-
-impl std::fmt::Display for ByteCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", BYTE_CODE_NAMES[*self as usize])
-    }
+pub fn from_float(value: f64) -> ByteCode {
+    let mut bytes = vec![
+        TypeCode::Float as u8
+    ];
+    bytes.extend(value.to_le_bytes());
+    bytes
 }
 
 
-impl std::convert::From<u8> for ByteCode {
+pub fn from_boolean(value: bool) -> ByteCode {
+    vec![
+        TypeCode::Boolean as u8,
+        value as u8
+    ]
+}
 
-    fn from(value: u8) -> Self {
-        if value < BYTE_CODE_COUNT as u8 {
-            unsafe { std::mem::transmute(value) }
-        } else {
-            panic!("Invalid byte code: {}", value);
-        }
-    }
+
+pub fn from_string(value: &str) -> ByteCode {
+    let mut bytes = vec![
+        TypeCode::String as u8,
+    ];
+    bytes.extend(from_int(value.len() as i64));
+    bytes.extend(value.as_bytes());
+    bytes
+}
+
+
+pub fn get_int(index: usize, code: &ByteCode) -> (i64, usize) {
+    (unsafe {
+        mem::transmute::<[u8; TypeSize::Number as usize], i64>(code[index .. index + TypeSize::Number as usize].try_into().unwrap())
+    }, TypeSize::Number as usize)
+}
+
+
+pub fn get_float(index: usize, code: &ByteCode) -> (f64, usize) {
+    (unsafe {
+        mem::transmute::<[u8; TypeSize::Number as usize], f64>(code[index .. index + TypeSize::Number as usize].try_into().unwrap())
+    }, TypeSize::Number as usize)
+}
+
+
+pub fn get_string(mut index: usize, code: &ByteCode) -> (String, usize) {
+    let (length, to_add) = get_int(index, code);
+    index += to_add;
+
+    let string = String::from_utf8(code[index .. index + length as usize].to_vec()).unwrap();
+    (string, length as usize + to_add)
+}
+
+
+pub fn get_boolean(index: usize, code: &ByteCode) -> (bool, usize) {
+    (code[index] != 0, TypeSize::Boolean as usize)
 }
 

@@ -5,11 +5,12 @@ mod syntax_tree;
 mod tokenizer;
 mod object;
 mod error;
-mod byte_code;
+mod op_code;
 mod jit;
 mod error_codes;
 mod utils;
 mod memory;
+mod byte_code;
 
 
 use clap::Parser;

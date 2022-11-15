@@ -1,5 +1,6 @@
 use crate::error_codes::{ErrorCode, RuntimeError};
-use crate::vm::{get_int, get_float, get_string, get_boolean};
+use crate::byte_code::ByteCode;
+use crate::byte_code;
 
 
 pub enum TypeSize {
@@ -126,22 +127,22 @@ impl Object {
     }
 
 
-    pub fn from_byte_code(type_code: TypeCode, code: &[u8], index: usize) -> (Object, usize) {
+    pub fn from_byte_code(type_code: TypeCode, code: &ByteCode, index: usize) -> (Object, usize) {
         match type_code {
             TypeCode::Int => {
-                let (number, to_add) = get_int(index, code);
+                let (number, to_add) = byte_code::get_int(index, code);
                 (Object::new(TypeCode::Int, Value::Int(number)), to_add)
             },
             TypeCode::Float => {
-                let (number, to_add) = get_float(index, code);
+                let (number, to_add) = byte_code::get_float(index, code);
                 (Object::new(TypeCode::Float, Value::Float(number as f64)), to_add)
             },
             TypeCode::String => {
-                let (string, to_add) = get_string(index, code);
+                let (string, to_add) = byte_code::get_string(index, code);
                 (Object::new(TypeCode::String, Value::String(string)), to_add)
             },
             TypeCode::Boolean => {
-                let (boolean, to_add) = get_boolean(index, code);
+                let (boolean, to_add) = byte_code::get_boolean(index, code);
                 (Object::new(TypeCode::Boolean, Value::Boolean(boolean)), to_add)
             },
             TypeCode::List => todo!(),
@@ -158,10 +159,10 @@ impl Object {
     /// Object representation:
     /// <type discriminator> <value>
     ///  */
-    pub fn to_byte_code(&self) -> Vec<u8> {
+    pub fn to_byte_code(&self) -> ByteCode {
         match self {
             Object { type_code: TypeCode::Int, value: Value::Int(value), .. } => {
-                let mut code: Vec<u8> = vec![
+                let mut code: ByteCode = vec![
                     self.type_code as u8,
                 ];
                 code.extend(value.to_le_bytes());
@@ -170,7 +171,7 @@ impl Object {
             },
 
             Object { type_code: TypeCode::Float, value: Value::Float(value), .. } => {
-                let mut code: Vec<u8> = vec![
+                let mut code: ByteCode = vec![
                     self.type_code as u8,
                 ];
                 code.extend(value.to_le_bytes());
@@ -179,7 +180,7 @@ impl Object {
             },
 
             Object { type_code: TypeCode::String, value: Value::String(value), .. } => {
-                let mut code: Vec<u8> = vec![
+                let mut code: ByteCode = vec![
                     self.type_code as u8,
                 ];
                 code.extend(value.len().to_le_bytes());
@@ -222,7 +223,7 @@ impl Object {
             },
 
             Object { type_code: TypeCode::Function, value: Value::Function(value), .. } => {
-                let mut code: Vec<u8> = vec![
+                let mut code: ByteCode = vec![
                     self.type_code as u8,
                 ];
                 code.extend(value.to_le_bytes());
