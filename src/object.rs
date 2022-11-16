@@ -21,7 +21,7 @@ pub enum TypeCode {
     Int = 0,
     Float,
     String,
-    Boolean,
+    Bool,
     List,
     None,
     Function,
@@ -33,7 +33,7 @@ const TYPE_CODE_NAMES: [&'static str; TYPE_CODE_COUNT] = [
     "Int",
     "Float",
     "String",
-    "Boolean",
+    "Bool",
     "List",
     "None",
     "Function",
@@ -71,7 +71,7 @@ pub enum Value {
     Int(i64),
     Float(f64),
     String(String),
-    Boolean(bool),
+    Bool(bool),
     List(Vec<ObjId>),
     None,
     Function(ObjId),
@@ -91,6 +91,33 @@ pub struct Object {
 
 
 impl Object {
+
+    pub fn to_bool(&self) -> Result<bool, RuntimeError> {
+        match self {
+            Object { type_code: TypeCode::Bool, value: Value::Bool(value), .. } => {
+                Ok(*value)
+            },
+            Object { type_code: TypeCode::Int, value: Value::Int(value), .. } => {
+                Ok(*value != 0)
+            },
+            Object { type_code: TypeCode::Float, value: Value::Float(value), .. } => {
+                Ok(*value != 0.0)
+            },
+            Object { type_code: TypeCode::String, value: Value::String(value), .. } => {
+                Ok(!value.is_empty())
+            },
+            Object { type_code: TypeCode::List, value: Value::List(value), .. } => {
+                Ok(!value.is_empty())
+            },
+            Object { type_code: TypeCode::None, .. } => {
+                Ok(false)
+            },
+            _ => {
+                Err(RuntimeError::new(ErrorCode::TypeError, format!("Cannot convert {} to bool", self.type_code.name())))
+            }
+        }
+    }
+
 
     pub fn new(type_code: TypeCode, value: Value) -> Self {
         Self {
@@ -141,9 +168,9 @@ impl Object {
                 let (string, to_add) = byte_code::get_string(index, code);
                 (Object::new(TypeCode::String, Value::String(string)), to_add)
             },
-            TypeCode::Boolean => {
+            TypeCode::Bool => {
                 let (boolean, to_add) = byte_code::get_boolean(index, code);
-                (Object::new(TypeCode::Boolean, Value::Boolean(boolean)), to_add)
+                (Object::new(TypeCode::Bool, Value::Bool(boolean)), to_add)
             },
             TypeCode::List => todo!(),
             TypeCode::None => {
@@ -189,7 +216,7 @@ impl Object {
                 code
             },
 
-            Object { type_code: TypeCode::Boolean, value: Value::Boolean(value), .. } => {
+            Object { type_code: TypeCode::Bool, value: Value::Bool(value), .. } => {
                 vec![
                     self.type_code as u8,
                     *value as u8
@@ -516,7 +543,7 @@ impl Object {
                 lhs == rhs
             },
 
-            (Object { type_code: TypeCode::Boolean, value: Value::Boolean(lhs), .. }, Object { type_code: TypeCode::Boolean, value: Value::Boolean(rhs), .. }) => {
+            (Object { type_code: TypeCode::Bool, value: Value::Bool(lhs), .. }, Object { type_code: TypeCode::Bool, value: Value::Bool(rhs), .. }) => {
                 lhs == rhs
             },
 
@@ -534,41 +561,134 @@ impl Object {
 
 
     pub fn not(obj: &Object) -> OpResult {
-        match obj {
-            Object { type_code: TypeCode::Boolean, value: Value::Boolean(val), .. } => {
-                Ok(Object::new(
-                    TypeCode::Boolean,
-                    Value::Boolean(!val)
-                ))
-            },
+        match obj.to_bool() {
+            Ok(b) => Ok(Object::new(TypeCode::Bool, Value::Bool(!b))),
+            Err(e) => Err(e),
+        }
+    }
 
-            Object { type_code: TypeCode::Int, value: Value::Int(val), .. } => {
-                Ok(Object::new(
-                    TypeCode::Boolean,
-                    Value::Boolean(*val == 0)
-                ))
-            },
 
-            Object { type_code: TypeCode::Float, value: Value::Float(val), .. } => {
-                Ok(Object::new(
-                    TypeCode::Boolean,
-                    Value::Boolean(*val == 0.0)
-                ))
+    pub fn and(a: &Object, b: &Object) -> OpResult {
+        match a.to_bool() {
+            Ok(a) => {
+                if a {
+                    match b.to_bool() {
+                        Ok(b) => Ok(Object::new(TypeCode::Bool, Value::Bool(a && b))),
+                        Err(e) => Err(e),
+                    }
+                } else {
+                    Ok(Object::new(TypeCode::Bool, Value::Bool(false)))
+                }
             },
+            Err(e) => Err(e),
+        }
+    }
 
-            Object { type_code: TypeCode::None, .. } => {
-                Ok(Object::new(
-                    TypeCode::Boolean,
-                    Value::Boolean(true)
-                ))
+
+    pub fn or(a: &Object, b: &Object) -> OpResult {
+        match a.to_bool() {
+            Ok(a) => {
+                if !a {
+                    match b.to_bool() {
+                        Ok(b) => Ok(Object::new(TypeCode::Bool, Value::Bool(a || b))),
+                        Err(e) => Err(e),
+                    }
+                } else {
+                    Ok(Object::new(TypeCode::Bool, Value::Bool(true)))
+                }
             },
+            Err(e) => Err(e),
+        }
+    }
 
+
+    pub fn greater(a: &Object, b: &Object) -> OpResult {
+        match (a, b) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Int, value: Value::Int(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(a > b)))
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(a > b)))
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(a), ..}, Object { type_code: TypeCode::Int, value: Value::Int(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(*a > *b as f64)))
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(*a as f64 > *b)))
+            },
             _ => Err(RuntimeError::new(
                 ErrorCode::TypeError,
-                format!("Cannot negate {}", obj.type_code.name())
+                format!("Cannot compare {} and {}", a.type_code.name(), b.type_code.name())
             )),
         }
     }
+
+
+    pub fn greater_eq(a: &Object, b: &Object) -> OpResult {
+        match (a, b) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Int, value: Value::Int(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(a >= b)))
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(a >= b)))
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(a), ..}, Object { type_code: TypeCode::Int, value: Value::Int(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(*a >= *b as f64)))
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(*a as f64 >= *b)))
+            },
+            _ => Err(RuntimeError::new(
+                ErrorCode::TypeError,
+                format!("Cannot compare {} and {}", a.type_code.name(), b.type_code.name())
+            )),
+        }
+    }
+
+
+    pub fn less(a: &Object, b: &Object) -> OpResult {
+        match (a, b) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Int, value: Value::Int(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(a < b)))
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(a < b)))
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(a), ..}, Object { type_code: TypeCode::Int, value: Value::Int(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(*a < *b as f64)))
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool((*a as f64) < *b)))
+            },
+            _ => Err(RuntimeError::new(
+                ErrorCode::TypeError,
+                format!("Cannot compare {} and {}", a.type_code.name(), b.type_code.name())
+            )),
+        }
+    }
+
+
+    pub fn less_eq(a: &Object, b: &Object) -> OpResult {
+        match (a, b) {
+            (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Int, value: Value::Int(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(a <= b)))
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(a <= b)))
+            },
+            (Object { type_code: TypeCode::Float, value: Value::Float(a), ..}, Object { type_code: TypeCode::Int, value: Value::Int(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(*a <= *b as f64)))
+            },
+            (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
+                Ok(Object::new(TypeCode::Bool, Value::Bool(*a as f64 <= *b)))
+            },
+            _ => Err(RuntimeError::new(
+                ErrorCode::TypeError,
+                format!("Cannot compare {} and {}", a.type_code.name(), b.type_code.name())
+            )),
+        }
+    }
+
 
 }
 

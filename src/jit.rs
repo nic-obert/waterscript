@@ -210,32 +210,71 @@ impl CodeBlock<'_> {
             SyntaxNode::AssignMul { priority, left, right, line } => todo!(),
             SyntaxNode::AssignDiv { priority, left, right, line } => todo!(),
             SyntaxNode::AssignMod { priority, left, right, line } => todo!(),
-            SyntaxNode::And { priority, left, right, line } => todo!(),
-            SyntaxNode::Or { priority, left, right, line } => todo!(),
-            SyntaxNode::Not { priority, operand, line } => todo!(),
-            SyntaxNode::Less { priority, left, right, line } => todo!(),
-            SyntaxNode::Greater { priority, left, right, line } => todo!(),
-            SyntaxNode::LessEqual { priority, left, right, line } => todo!(),
-            SyntaxNode::GreaterEqual { priority, left, right, line } => todo!(),
-            SyntaxNode::Equal { priority, left, right, line } => todo!(),
-            SyntaxNode::NotEqual { priority, left, right, line } => todo!(),
+            SyntaxNode::And { .. } => {
+                vec![OpCode::And as u8]
+            },
+            SyntaxNode::Or { .. } => {
+                vec![OpCode::Or as u8]
+            },
+            SyntaxNode::Not { .. } => {
+                vec![OpCode::Not as u8]
+            },
+            SyntaxNode::Less { .. } => {
+                vec![OpCode::Less as u8]
+            },
+            SyntaxNode::Greater { .. } => {
+                vec![OpCode::Greater as u8]
+            },
+            SyntaxNode::LessEqual { .. } => {
+                vec![OpCode::LessEqual as u8]
+            },
+            SyntaxNode::GreaterEqual { .. } => {
+                vec![OpCode::GreaterEqual as u8]
+            },
+            SyntaxNode::Equal { .. } => {
+                vec![OpCode::Equal as u8]
+            },
+            SyntaxNode::NotEqual { .. } => {
+                vec![OpCode::NotEqual as u8]
+            },
             SyntaxNode::Subscript { priority, iterable, index, line } => todo!(),
             SyntaxNode::Call { priority, function, arguments, line } => todo!(),
             SyntaxNode::Int { value, .. } => {
-                byte_code::from_int(*value)
+                let mut code: Vec<u8> = vec![
+                    OpCode::LoadConst as u8,
+                ];
+                code.extend(byte_code::from_int(*value));
+                code
             },
             SyntaxNode::Float { value, .. } => {
-                byte_code::from_float(*value)
+                let mut code: Vec<u8> = vec![
+                    OpCode::LoadConst as u8,
+                ];
+                code.extend(byte_code::from_float(*value));
+                code
             },
             SyntaxNode::String { value, .. } => {
-                byte_code::from_string(value)
+                let mut code: Vec<u8> = vec![
+                    OpCode::LoadConst as u8,
+                ];
+                code.extend(byte_code::from_string(value));
+                code
             },
             SyntaxNode::Boolean { value, .. } => {
-                byte_code::from_boolean(*value)
+                let mut code: Vec<u8> = vec![
+                    OpCode::LoadConst as u8,
+                ];
+                code.extend(byte_code::from_boolean(*value));
+                code
             },
             SyntaxNode::List { priority, elements, line } => todo!(),
             SyntaxNode::Identifier { priority, value, line } => todo!(),
-            SyntaxNode::None { priority, line } => todo!(),
+            SyntaxNode::None { .. } => {
+                vec![
+                    OpCode::LoadConst as u8,
+                    TypeCode::None as u8,
+                ]
+            },
             SyntaxNode::Fun { priority, name, params, body, line } => todo!(),
             SyntaxNode::Return { priority, value, line } => todo!(),
             SyntaxNode::If { priority, condition, body, else_node, line } => todo!(),

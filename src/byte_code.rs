@@ -25,7 +25,7 @@ pub fn from_float(value: f64) -> ByteCode {
 
 pub fn from_boolean(value: bool) -> ByteCode {
     vec![
-        TypeCode::Boolean as u8,
+        TypeCode::Bool as u8,
         value as u8
     ]
 }

@@ -1,7 +1,7 @@
 
 
 // Max is 256
-const OP_CODE_COUNT: usize = 19;
+const OP_CODE_COUNT: usize = 21;
 
 
 #[derive(Clone, Copy)]
@@ -26,6 +26,12 @@ pub enum OpCode {
     Subscript,
     ReturnValue,
     PushScope,
+    And,
+    Or,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
 
 }
 
@@ -50,6 +56,8 @@ const OP_CODE_NAMES: [&str; OP_CODE_COUNT] = [
     "Subscript",
     "ReturnValue",
     "PushScope",
+    "And",
+    "Or",
 ];
 
 

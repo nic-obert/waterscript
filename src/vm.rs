@@ -275,7 +275,7 @@ impl Vm<'_> {
                     let b = self.deref_object(&b);
 
                     self.stack.push(
-                        Object::new(TypeCode::Boolean, Value::Boolean(Object::eq(a, b)))
+                        Object::new(TypeCode::Bool, Value::Bool(Object::eq(a, b)))
                     );
                 },
 
@@ -287,7 +287,7 @@ impl Vm<'_> {
                     let b = self.deref_object(&b);
 
                     self.stack.push(
-                        Object::new(TypeCode::Boolean, Value::Boolean(Object::ne(a, b)))
+                        Object::new(TypeCode::Bool, Value::Bool(Object::ne(a, b)))
                     );
                 },
                 
@@ -310,6 +310,84 @@ impl Vm<'_> {
 
                 OpCode::PushScope => {
                     self.stack.push_scope();
+                },
+
+                OpCode::And => {
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
+
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::and(a, b) {
+                        Ok(obj) => self.stack.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
+                
+                OpCode::Or => {
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
+
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::or(a, b) {
+                        Ok(obj) => self.stack.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
+                
+                OpCode::Greater => {
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
+
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::greater(a, b) {
+                        Ok(obj) => self.stack.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
+                
+                OpCode::GreaterEqual => {
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
+
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::greater_eq(a, b) {
+                        Ok(obj) => self.stack.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
+                
+                OpCode::Less => {
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
+
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::less(a, b) {
+                        Ok(obj) => self.stack.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
+                },
+                
+                OpCode::LessEqual => {
+                    let b = self.stack.pop_require();
+                    let a = self.stack.pop_require();
+
+                    let a = self.deref_object(&a);
+                    let b = self.deref_object(&b);
+
+                    match Object::less_eq(a, b) {
+                        Ok(obj) => self.stack.push(obj),
+                        Err(error_code) => self.set_error(error_code),
+                    }
                 },
 
             }
