@@ -1,7 +1,7 @@
 use crate::op_code::OpCode;
 use crate::error_codes::RuntimeError;
 use crate::object::{Object, TypeCode, Value};
-use crate::jit::{CodeBlock, ChildrenBlock};
+use crate::jit::{CodeBlock, ChildrenBlock, self, Jit};
 use crate::utils::get_lines;
 use crate::memory::{Heap, ScopeStack};
 use crate::byte_code::ByteCode;
@@ -35,8 +35,9 @@ impl Vm<'_> {
     }
 
 
-    pub fn execute(&mut self, statements: &mut [CodeBlock], script: &str, verbose: bool) -> RuntimeError {
-        
+    pub fn execute(&mut self, jit: &mut Jit, script: &str, verbose: bool) -> RuntimeError {
+        let statements = &mut jit.statements;
+
         if verbose {
             self.run_verbose(statements, script);
         } else {

@@ -204,12 +204,17 @@ impl CodeBlock<'_> {
             SyntaxNode::Mod { .. } => {
                 vec![OpCode::Mod as u8]
             },
-            SyntaxNode::Assign { priority, left, right, line } => todo!(),
-            SyntaxNode::AssignAdd { priority, left, right, line } => todo!(),
-            SyntaxNode::AssignSub { priority, left, right, line } => todo!(),
-            SyntaxNode::AssignMul { priority, left, right, line } => todo!(),
-            SyntaxNode::AssignDiv { priority, left, right, line } => todo!(),
-            SyntaxNode::AssignMod { priority, left, right, line } => todo!(),
+            SyntaxNode::Assign { .. } => {
+                vec![
+                    OpCode::StoreTop as u8,
+                    // TODO: the address
+                ]
+            },
+            SyntaxNode::AssignAdd { .. } => todo!(),
+            SyntaxNode::AssignSub { .. } => todo!(),
+            SyntaxNode::AssignMul { .. } => todo!(),
+            SyntaxNode::AssignDiv { .. } => todo!(),
+            SyntaxNode::AssignMod { .. } => todo!(),
             SyntaxNode::And { .. } => {
                 vec![OpCode::And as u8]
             },
@@ -268,7 +273,9 @@ impl CodeBlock<'_> {
                 code
             },
             SyntaxNode::List { priority, elements, line } => todo!(),
-            SyntaxNode::Identifier { priority, value, line } => todo!(),
+            SyntaxNode::Identifier { value, .. } => {
+                todo!("Must create a system for variable names and addresses")            
+            },
             SyntaxNode::None { .. } => {
                 vec![
                     OpCode::LoadConst as u8,
@@ -298,6 +305,7 @@ impl CodeBlock<'_> {
 
 pub struct Jit<'a> {
     pub statements: Vec<CodeBlock<'a>>,
+    
 }
 
 

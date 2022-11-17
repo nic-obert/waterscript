@@ -49,7 +49,7 @@ fn main() {
     let mut jit = jit::Jit::from_syntax_tree(&syntax_tree, &script);
 
     let mut vm = vm::Vm::new();
-    let status = vm.execute(&mut jit.statements, &script, args.verbose);
+    let status = vm.execute(&mut jit, &script, args.verbose);
 
     if !args.quiet {
         println!("Program finished with exit code {} ({})", status.code, status.code.name());
