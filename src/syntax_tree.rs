@@ -52,6 +52,7 @@ pub enum SyntaxNode {
     In { priority: usize, iterable: Box<SyntaxNode>, line: usize },
     Break { priority: usize, line: usize },
     Continue { priority: usize, line: usize },
+    Let { priority: usize, symbol_name: String, line: usize },
 
     // Grouping
     Scope { priority: usize, statements: SyntaxTree, line: usize },
@@ -163,6 +164,7 @@ impl SyntaxNode {
             SyntaxNode::Parenthesis { line, .. } => *line,
             SyntaxNode::Subscript { line, .. } => *line,
             SyntaxNode::Call { line, .. } => *line,
+            SyntaxNode::Let { line, .. } => *line,
         }
     }
 
@@ -211,15 +213,16 @@ impl SyntaxNode {
             SyntaxNode::Subscript { priority, .. } => *priority,
             SyntaxNode::Call { priority, .. } => *priority,
             SyntaxNode::None { priority, .. } => *priority,
+            SyntaxNode::Let { priority, .. } => *priority,
         }
     }
 
 
     fn clear_priority(&self) {
         unsafe {
-            let this = self as *const SyntaxNode as *mut SyntaxNode;
+            let self_mut = self as *const SyntaxNode as *mut SyntaxNode;
         
-            match &mut *this {
+            match &mut *self_mut {
                 SyntaxNode::Add { priority, .. } => *priority = 0,
                 SyntaxNode::Sub { priority, .. } => *priority = 0,
                 SyntaxNode::Mul { priority, .. } => *priority = 0,
@@ -262,6 +265,7 @@ impl SyntaxNode {
                 SyntaxNode::Subscript { priority, .. } => *priority = 0,
                 SyntaxNode::Call { priority, .. } => *priority = 0,
                 SyntaxNode::None { priority, .. } => *priority = 0,
+                SyntaxNode::Let { priority, .. } => *priority = 0,
             }
         }
     }
@@ -311,6 +315,7 @@ impl SyntaxNode {
             SyntaxNode::Subscript { .. } => "Subscript",
             SyntaxNode::Call { .. } => "Call",
             SyntaxNode::None { .. } => "None",
+            SyntaxNode::Let { .. } => "Let",
         }
     }
 
@@ -717,6 +722,10 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                 current_statement.push(SyntaxNode::Continue { priority: *priority, line: *line });
             },
 
+            Token::Let { priority, line } => {
+                current_statement.push(SyntaxNode::Let { priority: *priority, symbol_name: String::new(), line: *line });
+            },
+
             _ => error::invalid_token_to_syntax_node_conversion(&token, script),
         }
 
@@ -1010,6 +1019,19 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     *body = statements;
                 } else {
                     error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                }
+
+                statement[index] = new_node;
+            },
+
+            SyntaxNode::Let { symbol_name, .. } => {
+                // Fill the symbol field with the variable name
+                let symbol_node = unary_extract_right(statement, index, old_node, script);
+                
+                if let SyntaxNode::Identifier { value, .. } = symbol_node {
+                    *symbol_name = value;
+                } else {
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), symbol_node.get_name(), IDENTIFIER.get_name(), script);
                 }
 
                 statement[index] = new_node;

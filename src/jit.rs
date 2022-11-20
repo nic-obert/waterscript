@@ -1,6 +1,7 @@
+use crate::symbol_table::SymbolTable;
 use crate::syntax_tree::{SyntaxTree, SyntaxNode};
 use crate::op_code::OpCode;
-use crate::object::TypeCode;
+use crate::object::{TypeCode, ObjId};
 use crate::byte_code::{ByteCode, self};
 
 
@@ -96,6 +97,7 @@ impl CodeBlock<'_> {
             SyntaxNode::Identifier { .. } |
             SyntaxNode::None { .. } |
             SyntaxNode::Break { .. } |
+            SyntaxNode::Let { .. } |
             SyntaxNode::Continue { .. } 
              => {
                 CodeBlock {
@@ -185,65 +187,84 @@ impl CodeBlock<'_> {
     /// Compile the code block into byte code.
     /// Doesn't check if the block is already compiled.
     /// When this function is called, the children should already be compiled.
-    pub fn compile(&mut self) {
+    pub fn compile(&self, context: &Jit) {
+
+        // Interior mutability is used here to avoid having to clone the code block
+        let self_mut = unsafe { &mut *(self as *const CodeBlock as *mut CodeBlock) };
+
         // Compile the syntax node into byte code
         // Don't care about compiling children, they should already be compiled
-        self.code = Some(match self.syntax_node {
+        self_mut.code = Some(match self.syntax_node {
+
             SyntaxNode::Add { .. } => {
                 vec![OpCode::Add as u8]
             },
+
             SyntaxNode::Sub { .. } => {
                 vec![OpCode::Sub as u8]
             },
+
             SyntaxNode::Mul { .. } => {
                 vec![OpCode::Mul as u8]
             },
+
             SyntaxNode::Div { .. } => {
                 vec![OpCode::Div as u8]
             },
+
             SyntaxNode::Mod { .. } => {
                 vec![OpCode::Mod as u8]
             },
+
             SyntaxNode::Assign { .. } => {
-                vec![
-                    OpCode::StoreTop as u8,
-                    // TODO: the address
-                ]
+                vec![OpCode::StoreTop as u8]
             },
+
             SyntaxNode::AssignAdd { .. } => todo!(),
             SyntaxNode::AssignSub { .. } => todo!(),
             SyntaxNode::AssignMul { .. } => todo!(),
             SyntaxNode::AssignDiv { .. } => todo!(),
             SyntaxNode::AssignMod { .. } => todo!(),
+
             SyntaxNode::And { .. } => {
                 vec![OpCode::And as u8]
             },
+
             SyntaxNode::Or { .. } => {
                 vec![OpCode::Or as u8]
             },
+
             SyntaxNode::Not { .. } => {
                 vec![OpCode::Not as u8]
             },
+
             SyntaxNode::Less { .. } => {
                 vec![OpCode::Less as u8]
             },
+
             SyntaxNode::Greater { .. } => {
                 vec![OpCode::Greater as u8]
             },
+
             SyntaxNode::LessEqual { .. } => {
                 vec![OpCode::LessEqual as u8]
             },
+
             SyntaxNode::GreaterEqual { .. } => {
                 vec![OpCode::GreaterEqual as u8]
             },
+
             SyntaxNode::Equal { .. } => {
                 vec![OpCode::Equal as u8]
             },
+
             SyntaxNode::NotEqual { .. } => {
                 vec![OpCode::NotEqual as u8]
             },
+
             SyntaxNode::Subscript { priority, iterable, index, line } => todo!(),
             SyntaxNode::Call { priority, function, arguments, line } => todo!(),
+            
             SyntaxNode::Int { value, .. } => {
                 let mut code: Vec<u8> = vec![
                     OpCode::LoadConst as u8,
@@ -251,6 +272,7 @@ impl CodeBlock<'_> {
                 code.extend(byte_code::from_int(*value));
                 code
             },
+            
             SyntaxNode::Float { value, .. } => {
                 let mut code: Vec<u8> = vec![
                     OpCode::LoadConst as u8,
@@ -258,6 +280,7 @@ impl CodeBlock<'_> {
                 code.extend(byte_code::from_float(*value));
                 code
             },
+            
             SyntaxNode::String { value, .. } => {
                 let mut code: Vec<u8> = vec![
                     OpCode::LoadConst as u8,
@@ -265,6 +288,7 @@ impl CodeBlock<'_> {
                 code.extend(byte_code::from_string(value));
                 code
             },
+
             SyntaxNode::Boolean { value, .. } => {
                 let mut code: Vec<u8> = vec![
                     OpCode::LoadConst as u8,
@@ -272,16 +296,21 @@ impl CodeBlock<'_> {
                 code.extend(byte_code::from_boolean(*value));
                 code
             },
+
             SyntaxNode::List { priority, elements, line } => todo!(),
+            
             SyntaxNode::Identifier { value, .. } => {
-                todo!("Must create a system for variable names and addresses")            
+                // An identifier is compiled to an address
+                byte_code::from_ref(context.symbol_table.get_id(value))
             },
+
             SyntaxNode::None { .. } => {
                 vec![
                     OpCode::LoadConst as u8,
                     TypeCode::None as u8,
                 ]
             },
+            
             SyntaxNode::Fun { priority, name, params, body, line } => todo!(),
             SyntaxNode::Return { priority, value, line } => todo!(),
             SyntaxNode::If { priority, condition, body, else_node, line } => todo!(),
@@ -295,6 +324,19 @@ impl CodeBlock<'_> {
             SyntaxNode::Scope { priority, statements, line } => todo!(),
             SyntaxNode::Parenthesis { priority, child, line } => todo!(),
             
+            SyntaxNode::Let { symbol_name, .. } => {
+                let symbol = context.symbol_table.declare(&symbol_name);
+
+                let mut code: ByteCode = vec![
+                    OpCode::LoadConst as u8,
+                    TypeCo
+                ];
+                code.extend(byte_code::from_ref(symbol.id));
+                code.push(OpCode::Allocate as u8);
+
+                code
+            },
+            
             _ => unimplemented!("Syntax node {} cannot be compiled.", self.syntax_node.get_name()),
         });
     }
@@ -305,7 +347,7 @@ impl CodeBlock<'_> {
 
 pub struct Jit<'a> {
     pub statements: Vec<CodeBlock<'a>>,
-    
+    pub symbol_table: SymbolTable,
 }
 
 
@@ -320,6 +362,7 @@ impl Jit<'_> {
 
         Jit {
             statements,
+            symbol_table: SymbolTable::new(),
         }
     }
 

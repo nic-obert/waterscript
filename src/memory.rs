@@ -63,16 +63,16 @@ impl Heap {
     }
 
 
-    pub fn get_ref(&self, id: usize) -> OpResult {
-        if let Some(obj) = self.objects.get(id) {
-            Ok(Object::new_ref(obj))
-        } else {
-            Err(RuntimeError::new(
-                ErrorCode::InvalidMemoryAccess,
-                format!("Invalid memory access at address {}", id),
-            ))
-        }
-    }
+    // pub fn get_ref(&self, id: usize) -> OpResult {
+    //     if let Some(obj) = self.objects.get(id) {
+    //         Ok(Object::new_ref(obj))
+    //     } else {
+    //         Err(RuntimeError::new(
+    //             ErrorCode::InvalidMemoryAccess,
+    //             format!("Invalid memory access at address {}", id),
+    //         ))
+    //     }
+    // }
 
 
     /// Store the object in a new heap location and give it a memory id.

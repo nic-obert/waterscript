@@ -75,7 +75,7 @@ pub enum Value {
     List(Vec<ObjId>),
     None,
     Function(ObjId),
-    Ref(*const Object),
+    Ref(Box<Object>),
 }
 
 
@@ -129,14 +129,14 @@ impl Object {
     }
 
 
-    pub fn new_ref(object_ptr: *const Object) -> Self {
-        Self {
-            id: 0,
-            type_code: TypeCode::Ref,
-            value: Value::Ref(object_ptr),
-            ref_count: 0,
-        }
-    }
+    // pub fn new_ref(object_ptr: *const Object) -> Self {
+    //     Self {
+    //         id: 0,
+    //         type_code: TypeCode::Ref,
+    //         value: Value::Ref(object_ptr),
+    //         ref_count: 0,
+    //     }
+    // }
 
 
     pub fn inc_ref_count(&mut self) {

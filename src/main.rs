@@ -11,6 +11,7 @@ mod error_codes;
 mod utils;
 mod memory;
 mod byte_code;
+mod symbol_table;
 
 
 use clap::Parser;

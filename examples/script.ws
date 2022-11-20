@@ -1,8 +1,8 @@
 # This is a comment
 
 # Variable assignment
-var = 1
-string = "hello"
+let var = 1
+let string = "hello"
 
 # Print variables
 print(var)
@@ -11,8 +11,8 @@ print(var)
 print(1 + 1)
 
 # Variables have weak dynamic typing
-var = 1
-var = "hello"
+let var = 1
+let var = "hello"
 
 # Different types can be used together in operations
 print("hello" + 1)
@@ -26,10 +26,10 @@ fun add(a, b) {
 print(add(1, 2))
 
 # Data types
-number = 1
-string = "hello"
-boolean = true
-list = [1, 2, 3]
+let number = 1
+let string = "hello"
+let boolean = true
+let list = [1, 2, 3]
 
 # Lists can be indexed
 print(list[0])
@@ -63,11 +63,11 @@ while true {
 
 # Scope
 
-global = 1
+let global = 1
 {
-    outer = 2
+    let outer = 2
     {
-        inner = 3
+        let inner = 3
         # Inner scope can see global scopes and outer scopes
         print(inner)
         print(outer)

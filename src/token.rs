@@ -59,6 +59,7 @@ pub enum Token {
     Break { priority: usize, line: usize },
     Continue { priority: usize, line: usize },
     None { priority: usize, line: usize },
+    Let { priority: usize, line: usize },
 
 }
 
@@ -119,6 +120,7 @@ impl Token {
             Token::Break { line, .. } => *line,
             Token::Continue { line, .. } => *line,
             Token::None { line, .. } => *line,
+            Token::Let { line, .. } => *line,
         }
     }
 
@@ -169,7 +171,8 @@ impl Token {
             Token::Else { .. } |
             Token::While { .. } |
             Token::In { .. } |
-            Token::For { .. }
+            Token::For { .. } |
+            Token::Let { .. }
             => false,
 
             _ => unimplemented!("is_self_stable() not implemented for {:?}", self)
@@ -235,6 +238,7 @@ impl std::fmt::Display for Token {
             Token::Break { .. } => write!(f, "Break"),
             Token::Continue { .. } => write!(f, "Continue"),
             Token::None { .. } => write!(f, "None"),
+            Token::Let { .. } => write!(f, "Let"),
         }
     }
 
@@ -256,6 +260,7 @@ pub fn string_to_keyword(string: &str, priority: usize, line: usize) -> Option<T
         "true" => Some(Token::Boolean { value: true, priority, line }),
         "false" => Some(Token::Boolean { value: false, priority, line }),
         "None" => Some(Token::None { priority, line }),
+        "let" => Some(Token::Let { priority, line }),
         _ => None,
     }
 }
@@ -311,6 +316,7 @@ fn add_variant_priority(token_variant: &mut Token) {
         Token::In { priority, .. } => *priority += Priority::Keyword as usize,
         Token::Break { priority, .. } => *priority += Priority::Keyword as usize,
         Token::Continue { priority, .. } => *priority += Priority::Keyword as usize,
+        Token::Let { priority, .. } => *priority += Priority::Keyword as usize,
 
         // Assignment
         Token::Equal { priority, .. } => *priority += Priority::Assignment as usize,

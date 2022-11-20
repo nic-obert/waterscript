@@ -1,5 +1,5 @@
 use crate::op_code::OpCode;
-use crate::error_codes::RuntimeError;
+use crate::error_codes::{RuntimeError, ErrorCode};
 use crate::object::{Object, TypeCode, Value};
 use crate::jit::{CodeBlock, ChildrenBlock, Jit};
 use crate::utils::get_lines;
@@ -36,76 +36,75 @@ impl Vm<'_> {
 
 
     pub fn execute(&mut self, jit: &mut Jit, script: &str, verbose: bool) -> RuntimeError {
-        let statements = &mut jit.statements;
 
         if verbose {
-            self.run_verbose(statements, script);
+            self.run_verbose(jit, script);
         } else {
-            self.run(statements, script);
+            self.run(jit, script);
         }
 
         self.error_stack.pop().unwrap_or_default()
     }
 
 
-    fn run(&mut self, statements: &mut [CodeBlock], script: &str) {
+    fn run(&mut self, jit: &mut Jit, script: &str) {
         let mut index: usize = 0;
 
-        while let Some(block) = statements.get_mut(index) {
+        while let Some(block) = jit.statements.get(index) {
 
             // Recursively execute the current code block and its children
-            self.execute_block(block, script);
+            self.execute_block(block, script, jit);
 
             index += 1;
         }
     }
 
 
-    fn run_verbose(&mut self, statements: &mut [CodeBlock], script: &str) {
+    fn run_verbose(&mut self, jit: &Jit, script: &str) {
         let mut index: usize = 0;
 
-        while let Some(block) = statements.get_mut(index) {
+        while let Some(block) = jit.statements.get(index) {
 
             println!("{}", get_lines(script, block.syntax_node.get_line(), 0));
 
             // Recursively execute the current code block and its children
-            self.execute_block(block, script);
+            self.execute_block(block, script, jit);
 
             index += 1;
         }
     }
 
 
-    fn execute_block(&mut self, block: &mut CodeBlock, script: &str) {
+    fn execute_block(&mut self, block: &CodeBlock, script: &str, jit: &Jit) {
         
         // Recursively execute the children first, if any
-        match &mut block.children {
+        match &block.children {
             ChildrenBlock::None => {
-                // Do nothing, there are no children to execute
+                // Do nothing, there are no children to execute/compile
             },
             ChildrenBlock::Unary { child } => {
-                self.execute_block(child, script);
+                self.execute_block(child, script, jit);
             },
             ChildrenBlock::Binary { a, b } => {
-                self.execute_block(a, script);
-                self.execute_block(b, script);
+                self.execute_block(a, script, jit);
+                self.execute_block(b, script, jit);
             },
             ChildrenBlock::IfLike { condition, body: _, else_block: _ } => {
-                self.execute_block(condition, script);
+                self.execute_block(condition, script, jit);
             }, 
             ChildrenBlock::ListLike { elements } => {
                 for element in elements {
-                    self.execute_block(element, script);
+                    self.execute_block(element, script, jit);
                 }
             },
             ChildrenBlock::LoopLike { condition, body: _ } => {
-                self.execute_block(condition, script);
+                self.execute_block(condition, script, jit) ;
             },
         }
 
         // Compile it if it hasn't been compiled yet
         if !block.is_compiled() {
-            block.compile()
+            block.compile(jit)
         }
           
         self.execute_code(block.code.as_ref().unwrap(), script);
@@ -134,6 +133,19 @@ impl Vm<'_> {
     }
 
 
+    fn assign_ref(&mut self, target_ref: &mut Object, value: Object) -> Result<(), RuntimeError> {
+        if let Object { type_code: TypeCode::Ref, value: Value::Ref(object_ptr), .. } = target_ref {
+            **object_ptr = value;
+            Ok(())
+        } else {
+            Err(RuntimeError {
+                code: ErrorCode::TypeError,
+                message: "Cannot assign to non-reference".to_string(),
+            })
+        }
+    }
+
+
     fn execute_code(&mut self, code: &ByteCode, script: &str) {
         let mut index: usize = 0;
 
@@ -149,18 +161,18 @@ impl Vm<'_> {
                 },
 
                 OpCode::LoadSymbol => {
-                    let (id, to_add) = byte_code::get_int(index, code);
-                    index += to_add;
+                    // let (id, to_add) = byte_code::get_int(index, code);
+                    // index += to_add;
 
-                    match self.heap.get_ref(id as usize) {
-                        Ok(obj_ref) => {
-                            self.stack.push(obj_ref);
-                        },
-                        Err(error_code) => {
-                            self.set_error(error_code);
-                            return;
-                        }
-                    }
+                    // match self.heap.get_ref(id as usize) {
+                    //     Ok(obj_ref) => {
+                    //         self.stack.push(obj_ref);
+                    //     },
+                    //     Err(error_code) => {
+                    //         self.set_error(error_code);
+                    //         return;
+                    //     }
+                    // }
                 },
 
                 OpCode::LoadConst => {
@@ -196,11 +208,15 @@ impl Vm<'_> {
                 },
                 
                 OpCode::StoreTop => {
-                    let (id, to_add) = byte_code::get_int(index, code);
-                    index += to_add;
+                    let r_obj = self.stack.pop_require();
+                    let mut l_ref = self.stack.pop_require();
 
-                    let obj = self.stack.pop_require();
-                    self.heap.set(obj, id as usize);
+                    if let Err(error_code) = self.assign_ref(&mut l_ref, r_obj) {
+                        self.set_error(error_code);
+                        return;
+                    }
+
+                    //self.heap.set(obj, id as usize);
                 },
                 
                 OpCode::Add => {
@@ -390,6 +406,10 @@ impl Vm<'_> {
                         Err(error_code) => self.set_error(error_code),
                     }
                 },
+
+                OpCode::Allocate => {
+                    todo!()
+                }
 
             }
 

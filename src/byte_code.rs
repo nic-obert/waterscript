@@ -31,6 +31,15 @@ pub fn from_boolean(value: bool) -> ByteCode {
 }
 
 
+pub fn from_ref(value: usize) -> ByteCode {
+    let mut bytes = vec![
+        TypeCode::Ref as u8
+    ];
+    bytes.extend(value.to_le_bytes());
+    bytes
+}
+
+
 pub fn from_string(value: &str) -> ByteCode {
     let mut bytes = vec![
         TypeCode::String as u8,
