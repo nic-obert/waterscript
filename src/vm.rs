@@ -1,7 +1,7 @@
 use crate::op_code::OpCode;
 use crate::error_codes::RuntimeError;
 use crate::object::{Object, TypeCode, Value};
-use crate::jit::{CodeBlock, ChildrenBlock, self, Jit};
+use crate::jit::{CodeBlock, ChildrenBlock, Jit};
 use crate::utils::get_lines;
 use crate::memory::{Heap, ScopeStack};
 use crate::byte_code::ByteCode;
