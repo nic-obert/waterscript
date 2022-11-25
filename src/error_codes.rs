@@ -1,5 +1,6 @@
 
 
+#[derive(Debug)]
 pub struct RuntimeError {
     pub code: ErrorCode,
     pub message: String,
@@ -28,7 +29,7 @@ impl std::default::Default for RuntimeError {
 }
 
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum ErrorCode {
     Ok = 0,
     TypeError,

@@ -32,12 +32,12 @@ pub enum OpCode {
     GreaterEqual,
     Less,
     LessEqual,
-    Allocate,
+    AllocateAndPushRef,
 
 }
 
 
-const OP_CODE_NAMES: [&str; OP_CODE_COUNT] = [
+const OP_CODE_NAMES: [&'static str; OP_CODE_COUNT] = [
     "Nop",
     "LoadSymbol",
     "LoadConst",
@@ -63,7 +63,7 @@ const OP_CODE_NAMES: [&str; OP_CODE_COUNT] = [
     "GreaterEqual",
     "Less",
     "LessEqual",
-    "Allocate",
+    "AllocateAndPushRef",
 ];
 
 

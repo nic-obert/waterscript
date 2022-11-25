@@ -75,7 +75,7 @@ pub enum Value {
     List(Vec<ObjId>),
     None,
     Function(ObjId),
-    Ref(Box<Object>),
+    Ref(*mut Object),
 }
 
 
@@ -91,6 +91,12 @@ pub struct Object {
 
 
 impl Object {
+
+    /// Returns a None object
+    pub fn none() -> Object {
+        Object::new(TypeCode::None, Value::None)
+    }
+
 
     pub fn to_bool(&self) -> Result<bool, RuntimeError> {
         match self {
@@ -129,14 +135,14 @@ impl Object {
     }
 
 
-    // pub fn new_ref(object_ptr: *const Object) -> Self {
-    //     Self {
-    //         id: 0,
-    //         type_code: TypeCode::Ref,
-    //         value: Value::Ref(object_ptr),
-    //         ref_count: 0,
-    //     }
-    // }
+    pub fn new_ref(object_ptr: *mut Object) -> Self {
+        Self {
+            id: 0,
+            type_code: TypeCode::Ref,
+            value: Value::Ref(object_ptr),
+            ref_count: 0,
+        }
+    }
 
 
     pub fn inc_ref_count(&mut self) {

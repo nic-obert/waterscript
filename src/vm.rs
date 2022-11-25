@@ -3,9 +3,8 @@ use crate::error_codes::{RuntimeError, ErrorCode};
 use crate::object::{Object, TypeCode, Value};
 use crate::jit::{CodeBlock, ChildrenBlock, Jit};
 use crate::utils::get_lines;
-use crate::memory::{Heap, ScopeStack};
+use crate::memory::{Heap, ScopeStack, Address};
 use crate::byte_code::ByteCode;
-use crate::byte_code;
 
 
 struct Function<'a> {
@@ -161,18 +160,9 @@ impl Vm<'_> {
                 },
 
                 OpCode::LoadSymbol => {
-                    // let (id, to_add) = byte_code::get_int(index, code);
-                    // index += to_add;
+                    let symbol_id = self.stack.pop_require();
 
-                    // match self.heap.get_ref(id as usize) {
-                    //     Ok(obj_ref) => {
-                    //         self.stack.push(obj_ref);
-                    //     },
-                    //     Err(error_code) => {
-                    //         self.set_error(error_code);
-                    //         return;
-                    //     }
-                    // }
+
                 },
 
                 OpCode::LoadConst => {
@@ -407,8 +397,11 @@ impl Vm<'_> {
                     }
                 },
 
-                OpCode::Allocate => {
-                    todo!()
+                OpCode::AllocateAndPushRef => {
+                    // Allocate space for an object on the heap
+                    // and push its heap address onto the stack.
+                    let obj_ref = self.heap.allocate_and_get_ref();
+                    self.stack.push(obj_ref);
                 }
 
             }

@@ -82,3 +82,8 @@ pub fn empty_parentheses(line: usize, script: &str) -> ! {
     error(format!("Empty parentheses at line {}:\n{}\n\n", line, get_lines(script, line, 1)));
 }
 
+
+pub fn undeclared_symbol(symbol: &str, line: usize, script: &str) -> ! {
+    error(format!("Undeclared symbol '{}' at line {}:\n{}\n\n", symbol, line, get_lines(script, line, 1)));
+}
+

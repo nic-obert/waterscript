@@ -31,7 +31,7 @@ pub fn from_boolean(value: bool) -> ByteCode {
 }
 
 
-pub fn from_ref(value: usize) -> ByteCode {
+pub fn from_symbol_id(value: usize) -> ByteCode {
     let mut bytes = vec![
         TypeCode::Ref as u8
     ];

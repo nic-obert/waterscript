@@ -1,89 +1,113 @@
 use std::collections::HashMap;
 
+use crate::memory::Address;
 
-pub struct Symbol {
-    pub id: usize
+
+pub type SymbolId = usize;
+
+
+pub struct Scope {
+    /// Map symbol names to their position in the local heap index.
+    symbols: HashMap<String, usize>,
+    /// Map local symbol ids to their position in the heap index.
+    local_index: Vec<usize>,
 }
 
 
-impl Symbol {
-    pub fn new(id: usize) -> Self {
+impl Scope {
+
+    pub fn new() -> Self {
         Self {
-            id
+            symbols: HashMap::new(),
+            local_index: Vec::new(),
         }
     }
+
+
+    /// Declare the symbol name in the current scope.
+    /// Returns the local symbol id.
+    pub fn declare(&mut self, name: &str, global_id: SymbolId) -> SymbolId {
+        let local_id = self.local_index.len();
+        self.symbols.insert(name.to_string(), local_id);
+        self.local_index.push(global_id);
+        local_id
+    }
+
 }
-
-
-pub type Scope = HashMap<String, Symbol>;
 
 
 pub struct SymbolTable {
-    symbols: Vec<Scope>
+    scopes: Vec<Scope>,
+    heap_index: Vec<Address>,
 }
 
 
 impl SymbolTable {
 
     pub fn new() -> Self {
-        Self {
-            symbols: vec![Scope::new()]
-        }
+        let st = Self {
+            scopes: Vec::new(),
+            heap_index: Vec::new(),
+        };
+        // Push the global scope
+        st.push_scope();
+        st
     }
 
 
     pub fn push_scope(&self) {
-
+        // Interior mutability
         let self_mut = unsafe {
             &mut *(self as *const Self as *mut Self)
         };
 
-        self_mut.symbols.push(Scope::new());
+        self_mut.scopes.push(Scope::new());
     }
 
 
     pub fn pop_scope(&self) {
-
+        // Interior mutability
         let self_mut = unsafe {
             &mut *(self as *const Self as *mut Self)
         };
 
-        self_mut.symbols.pop();
+        self_mut.scopes.pop().unwrap();
     }
 
 
-    /// Declare a new symbol in the current scope
-    /// Returns a reference to the new symbol
-    pub fn declare(&self, name: &str) -> &Symbol {
+    /// Declare a new symbol in the current scope.
+    /// Returns the local symbol id.
+    pub fn declare(&self, name: &str) -> SymbolId {
         
         // Interior mutability
         let self_mut = unsafe {
             &mut *(self as *const Self as *mut Self)
         };
 
-        let symbol = Symbol::new(self_mut.symbols.last().unwrap().len());
+        // Declare the new symbol
+        let index_id = self.heap_index.len();
+        let local_id = self_mut.scopes.last_mut().unwrap().declare(name, index_id);
+        self_mut.heap_index.push(0);
 
-        self_mut.symbols.last_mut().unwrap().insert(name.to_string(), symbol);
-
-        self_mut.symbols.last().unwrap().get(name).unwrap()
+        local_id
     }
 
-    
-    /// Returns the address of the symbol.
-    /// If the symbol is not declared, it will be declared.
-    pub fn get_id(&self, name: &str) -> usize {
 
-        // Interior mutability
-        let self_mut = unsafe { &mut *(self as *const Self as *mut Self) };
-
-        for scope in self_mut.symbols.iter_mut().rev() {
-            if let Some(symbol) = scope.get(name) {
-                return symbol.id;
+    /// Get the id of the symbol in the global symbol table.
+    pub fn get_id(&self, name: &str) -> Option<SymbolId> {
+        // Iterate over the scopes in reverse order to search for the symbol
+        for scope in self.scopes.iter().rev() {
+            if let Some(local_id) = scope.symbols.get(name) {
+                return Some(scope.local_index[*local_id]);
             }
         }
-        let id = self.symbols.last().unwrap().len();
-        self_mut.symbols.last_mut().unwrap().insert(name.to_string(), Symbol { id });
-        id
+
+        None
+    }
+
+
+    pub fn get_heap_address(&self, global_id: SymbolId) -> Option<SymbolId> {
+        self.heap_index.get(global_id).cloned()
     }
 
 }

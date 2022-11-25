@@ -1,3 +1,4 @@
+use crate::error;
 use crate::symbol_table::SymbolTable;
 use crate::syntax_tree::{SyntaxTree, SyntaxNode};
 use crate::op_code::OpCode;
@@ -299,9 +300,20 @@ impl CodeBlock<'_> {
 
             SyntaxNode::List { priority, elements, line } => todo!(),
             
-            SyntaxNode::Identifier { value, .. } => {
-                // An identifier is compiled to an address
-                byte_code::from_ref(context.symbol_table.get_id(value))
+            SyntaxNode::Identifier { value: name, line, .. } => {
+                let mut code: ByteCode = vec![
+                    OpCode::LoadSymbol as u8,
+                ];
+                // Get the symbol id, if it exists. Else, throw an error.
+                if let Some(symbol_id) = context.symbol_table.get_id(name) {
+                    code.extend(
+                        byte_code::from_symbol_id(symbol_id)
+                    );
+                } else {
+                    error::undeclared_symbol(name, *line, context.script);
+                }
+
+                code
             },
 
             SyntaxNode::None { .. } => {
@@ -325,16 +337,17 @@ impl CodeBlock<'_> {
             SyntaxNode::Parenthesis { priority, child, line } => todo!(),
             
             SyntaxNode::Let { symbol_name, .. } => {
-                let symbol = context.symbol_table.declare(&symbol_name);
+                /*
+                    1. Declare the symbol in the symbol table
+                    2. Allocate space for the object in the heap
+                    3. Load a reference to the object onto the stack
+                */
 
-                let mut code: ByteCode = vec![
-                    OpCode::LoadConst as u8,
-                    TypeCo
-                ];
-                code.extend(byte_code::from_ref(symbol.id));
-                code.push(OpCode::Allocate as u8);
+                let symbol_id = context.symbol_table.declare(symbol_name);
 
-                code
+                vec![
+                    OpCode::AllocateAndPushRef as u8,
+                ]
             },
             
             _ => unimplemented!("Syntax node {} cannot be compiled.", self.syntax_node.get_name()),
@@ -348,6 +361,7 @@ impl CodeBlock<'_> {
 pub struct Jit<'a> {
     pub statements: Vec<CodeBlock<'a>>,
     pub symbol_table: SymbolTable,
+    pub script: &'a str,
 }
 
 
@@ -363,6 +377,7 @@ impl Jit<'_> {
         Jit {
             statements,
             symbol_table: SymbolTable::new(),
+            script,
         }
     }
 

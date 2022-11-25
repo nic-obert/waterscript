@@ -2,6 +2,7 @@ use crate::object::{Object, OpResult};
 use crate::error_codes::{ErrorCode, RuntimeError};
 
 
+pub type Address = usize;
 pub type Scope = Vec<Object>;
 
 pub struct ScopeStack {
@@ -63,22 +64,28 @@ impl Heap {
     }
 
 
-    // pub fn get_ref(&self, id: usize) -> OpResult {
-    //     if let Some(obj) = self.objects.get(id) {
-    //         Ok(Object::new_ref(obj))
-    //     } else {
-    //         Err(RuntimeError::new(
-    //             ErrorCode::InvalidMemoryAccess,
-    //             format!("Invalid memory access at address {}", id),
-    //         ))
-    //     }
-    // }
+    /// Get a reference to the object at the given address.
+    pub fn get_ref(&mut self, address: Address) -> OpResult {
+        if let Some(obj) = self.objects.get_mut(address) {
+            obj.inc_ref_count();
+            Ok(Object::new_ref(obj as *mut Object))
+        } else {
+            Err(RuntimeError::new(
+                ErrorCode::InvalidMemoryAccess,
+                format!("Invalid memory access at address {}", address),
+            ))
+        }
+    }
 
 
-    /// Store the object in a new heap location and give it a memory id.
-    pub fn store_new(&mut self, mut object: Object) {
-        object.id = self.objects.len();
-        self.objects.push(object);
+    /// Allocate space on the heap for a new object.
+    /// Initialize the new object to None.
+    /// Return the address of the new object.
+    pub fn allocate_and_get_ref(&mut self) -> Object {
+        // TODO: Garbage collection and free address table
+        let address = self.objects.len();
+        self.objects.push(Object::none());
+        self.get_ref(address).unwrap()
     }
 
 
