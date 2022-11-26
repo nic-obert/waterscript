@@ -2,9 +2,10 @@ use crate::op_code::OpCode;
 use crate::error_codes::{RuntimeError, ErrorCode};
 use crate::object::{Object, TypeCode, Value};
 use crate::jit::{CodeBlock, ChildrenBlock, Jit};
+use crate::symbol_table::SymbolId;
 use crate::utils::get_lines;
 use crate::memory::{Heap, ScopeStack, Address};
-use crate::byte_code::ByteCode;
+use crate::byte_code::{ByteCode, self};
 
 
 struct Function<'a> {
@@ -106,7 +107,7 @@ impl Vm<'_> {
             block.compile(jit)
         }
           
-        self.execute_code(block.code.as_ref().unwrap(), script);
+        self.execute_code(block.code.as_ref().unwrap(), script, jit);
         
     }
 
@@ -134,7 +135,9 @@ impl Vm<'_> {
 
     fn assign_ref(&mut self, target_ref: &mut Object, value: Object) -> Result<(), RuntimeError> {
         if let Object { type_code: TypeCode::Ref, value: Value::Ref(object_ptr), .. } = target_ref {
-            **object_ptr = value;
+            unsafe {
+                **object_ptr = value;
+            }
             Ok(())
         } else {
             Err(RuntimeError {
@@ -145,7 +148,7 @@ impl Vm<'_> {
     }
 
 
-    fn execute_code(&mut self, code: &ByteCode, script: &str) {
+    fn execute_code(&mut self, code: &ByteCode, script: &str, context: &Jit) {
         let mut index: usize = 0;
 
         while index < code.len() {
@@ -160,8 +163,20 @@ impl Vm<'_> {
                 },
 
                 OpCode::LoadSymbol => {
-                    let symbol_id = self.stack.pop_require();
+                    let (symbol_id, to_add) = byte_code::get_int(index, code);
+                    index += to_add;
 
+                    let address = if let Some(address) = context.symbol_table.get_heap_address(symbol_id as SymbolId) {
+                        address
+                    } else {
+                        self.set_error(RuntimeError {
+                            code: ErrorCode::UndeclaredSymbol,
+                            message: format!("Symbol with id {} is not declared", symbol_id), // TODO: get the symbol name
+                        });
+                        break;
+                    };
+                    
+                    todo!()
 
                 },
 

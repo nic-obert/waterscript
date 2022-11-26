@@ -35,6 +35,7 @@ pub enum ErrorCode {
     TypeError,
     ZeroDivision,
     InvalidMemoryAccess,
+    UndeclaredSymbol,
 }
 
 
@@ -53,6 +54,7 @@ impl ErrorCode {
             ErrorCode::TypeError => "TypeError",
             ErrorCode::ZeroDivision => "ZeroDivision",
             ErrorCode::InvalidMemoryAccess => "InvalidMemoryAccess",
+            ErrorCode::UndeclaredSymbol => "UndeclaredSymbol",
         }
     }
 
