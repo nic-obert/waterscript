@@ -166,17 +166,20 @@ impl Vm<'_> {
                     let (symbol_id, to_add) = byte_code::get_int(index, code);
                     index += to_add;
 
-                    let address = if let Some(address) = context.symbol_table.get_heap_address(symbol_id as SymbolId) {
+                    let symbol_id = symbol_id as SymbolId;
+
+                    let address = if let Some(address) = context.symbol_table.get_heap_address(symbol_id) {
                         address
                     } else {
                         self.set_error(RuntimeError {
                             code: ErrorCode::UndeclaredSymbol,
-                            message: format!("Symbol with id {} is not declared", symbol_id), // TODO: get the symbol name
+                            message: format!("Symbol '{}' (id: {}) is not declared", context.symbol_table.get_name(symbol_id), symbol_id),
                         });
                         break;
                     };
-                    
+
                     todo!()
+                    
 
                 },
 

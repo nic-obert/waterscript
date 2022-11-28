@@ -9,7 +9,7 @@ pub type SymbolId = usize;
 pub struct Scope {
     /// Map symbol names to their position in the local heap index.
     symbols: HashMap<String, usize>,
-    /// Map local symbol ids to their position in the heap index.
+    /// Map local symbol ids to their position in the global heap index.
     local_index: Vec<usize>,
 }
 
@@ -37,7 +37,9 @@ impl Scope {
 
 
 pub struct SymbolTable {
+    /// Stack of scopes
     scopes: Vec<Scope>,
+    /// Maps the symbol ids to their heap address
     heap_index: Vec<Address>,
 }
 
@@ -52,6 +54,23 @@ impl SymbolTable {
         // Push the global scope
         st.push_scope();
         st
+    }
+
+
+    /// Get the name of the symbol with the given global symbol id
+    pub fn get_name(&self, global_id: SymbolId) -> &str {
+        for scope in self.scopes.iter().rev() {
+            for (local_id, g_id) in scope.local_index.iter().enumerate() {
+                if *g_id == global_id {
+                    let (key, value) = scope.symbols.iter().find(
+                        |(key, value)| **value == local_id
+                    ).unwrap();
+                    return key;
+                }
+            }
+        }
+
+        unreachable!();
     }
 
 
@@ -85,8 +104,9 @@ impl SymbolTable {
         };
 
         // Declare the new symbol
-        let index_id = self.heap_index.len();
-        let local_id = self_mut.scopes.last_mut().unwrap().declare(name, index_id);
+        let global_id = self.heap_index.len();
+        let local_id = self_mut.scopes.last_mut().unwrap().declare(name, global_id);
+        // Push a placeholder heap address
         self_mut.heap_index.push(0);
 
         local_id
