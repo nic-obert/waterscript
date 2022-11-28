@@ -112,8 +112,8 @@ impl Vm<'_> {
     }
 
 
-    fn set_error(&mut self, error_code: RuntimeError) {
-        self.error_stack.push(error_code);
+    fn set_error(&mut self, error: RuntimeError) {
+        self.error_stack.push(error);
     }
 
 
@@ -162,25 +162,26 @@ impl Vm<'_> {
                     // Do nothing
                 },
 
-                OpCode::LoadSymbol => {
-                    let (symbol_id, to_add) = byte_code::get_int(index, code);
+                OpCode::LoadRef => {
+                    let (symbol_id, to_add) = byte_code::get_id(index, code);
                     index += to_add;
 
-                    let symbol_id = symbol_id as SymbolId;
-
-                    let address = if let Some(address) = context.symbol_table.get_heap_address(symbol_id) {
-                        address
-                    } else {
-                        self.set_error(RuntimeError {
-                            code: ErrorCode::UndeclaredSymbol,
-                            message: format!("Symbol '{}' (id: {}) is not declared", context.symbol_table.get_name(symbol_id), symbol_id),
-                        });
-                        break;
+                    let address = match context.symbol_table.get_heap_address(symbol_id) {
+                        Ok(address) => address,
+                        Err(error) => {
+                            self.set_error(error);
+                            return;
+                        }
                     };
 
-                    todo!()
-                    
-
+                    match self.heap.get_ref(address) {
+                        Ok(obj_ref) => {
+                            self.stack.push(obj_ref);
+                        },
+                        Err(error) => {
+                            self.set_error(error);
+                        }
+                    }
                 },
 
                 OpCode::LoadConst => {
@@ -219,8 +220,8 @@ impl Vm<'_> {
                     let r_obj = self.stack.pop_require();
                     let mut l_ref = self.stack.pop_require();
 
-                    if let Err(error_code) = self.assign_ref(&mut l_ref, r_obj) {
-                        self.set_error(error_code);
+                    if let Err(error) = self.assign_ref(&mut l_ref, r_obj) {
+                        self.set_error(error);
                         return;
                     }
 
@@ -417,9 +418,16 @@ impl Vm<'_> {
 
                 OpCode::AllocateAndPushRef => {
                     // Allocate space for an object on the heap
-                    // and push its heap address onto the stack.
+                    // and push a reference to it on the stack
                     let obj_ref = self.heap.allocate_and_get_ref();
                     self.stack.push(obj_ref);
+                },
+
+                OpCode::MakeList => {
+                    let (count, to_add) = byte_code::get_usize(index, code);
+                    index += to_add;
+
+                    let mut list: = Vec::with_capacity(count);
                 }
 
             }

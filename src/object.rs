@@ -1,6 +1,7 @@
 use crate::error_codes::{ErrorCode, RuntimeError};
 use crate::byte_code::ByteCode;
 use crate::byte_code;
+use crate::memory::Address;
 
 
 pub enum TypeSize {
@@ -63,26 +64,21 @@ impl From<u8> for TypeCode {
 }
 
 
-pub type ObjId = usize;
-
-
 #[derive(Debug)]
 pub enum Value {
     Int(i64),
     Float(f64),
     String(String),
     Bool(bool),
-    List(Vec<ObjId>),
+    List(Vec<Address>),
     None,
-    Function(ObjId),
+    Function(Address),
     Ref(*mut Object),
 }
 
 
 #[derive(Debug)]
 pub struct Object {
-    /// The id is the index of the object in the heap.
-    pub id: ObjId,
     pub type_code: TypeCode,
     pub value: Value,
     /// Used by the garbage collector to mark objects that are still in use.
@@ -127,7 +123,6 @@ impl Object {
 
     pub fn new(type_code: TypeCode, value: Value) -> Self {
         Self {
-            id: 0,
             type_code,
             value,
             ref_count: 0,
@@ -137,7 +132,6 @@ impl Object {
 
     pub fn new_ref(object_ptr: *mut Object) -> Self {
         Self {
-            id: 0,
             type_code: TypeCode::Ref,
             value: Value::Ref(object_ptr),
             ref_count: 0,
@@ -178,12 +172,11 @@ impl Object {
                 let (boolean, to_add) = byte_code::get_boolean(index, code);
                 (Object::new(TypeCode::Bool, Value::Bool(boolean)), to_add)
             },
-            TypeCode::List => todo!(),
             TypeCode::None => {
                 (Object::new(TypeCode::None, Value::None), TypeSize::None as usize)
             },
-            TypeCode::Function => todo!(),
-            TypeCode::Ref => todo!(),
+            
+            _ => unimplemented!("Cannot create object from byte code for type {}", type_code.name())
         }
     }
 

@@ -1,8 +1,19 @@
 use std::mem;
+
 use crate::object::{TypeSize, TypeCode};
+use crate::symbol_table::SymbolId;
 
 
 pub type ByteCode = Vec<u8>;
+
+
+pub fn raw_from_usize(value: usize) -> [u8; mem::size_of::<usize>()] {
+    let mut bytes = [0; mem::size_of::<usize>()];
+    for i in 0..mem::size_of::<usize>() {
+        bytes[i] = (value >> (i * 8)) as u8;
+    }
+    bytes
+}
 
 
 pub fn from_int(value: i64) -> ByteCode {
@@ -50,6 +61,13 @@ pub fn from_string(value: &str) -> ByteCode {
 }
 
 
+pub fn get_id(index: usize, code: &ByteCode) -> (SymbolId, usize) {
+    (unsafe {
+        mem::transmute::<[u8; mem::size_of::<SymbolId>()], SymbolId>(code[index .. index + mem::size_of::<SymbolId>()].try_into().unwrap())
+    }, mem::size_of::<SymbolId>())
+}
+
+
 pub fn get_int(index: usize, code: &ByteCode) -> (i64, usize) {
     (unsafe {
         mem::transmute::<[u8; TypeSize::Number as usize], i64>(code[index .. index + TypeSize::Number as usize].try_into().unwrap())
@@ -75,5 +93,12 @@ pub fn get_string(mut index: usize, code: &ByteCode) -> (String, usize) {
 
 pub fn get_boolean(index: usize, code: &ByteCode) -> (bool, usize) {
     (code[index] != 0, TypeSize::Boolean as usize)
+}
+
+
+pub fn get_usize(index: usize, code: &ByteCode) -> (usize, usize) {
+    (unsafe {
+        mem::transmute::<[u8; mem::size_of::<usize>()], usize>(code[index .. index + mem::size_of::<usize>()].try_into().unwrap())
+    }, mem::size_of::<usize>())
 }
 

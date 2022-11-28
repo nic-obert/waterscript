@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::memory::Address;
+use crate::{memory::Address, error_codes::{RuntimeError, ErrorCode}};
 
 
 pub type SymbolId = usize;
@@ -126,8 +126,15 @@ impl SymbolTable {
     }
 
 
-    pub fn get_heap_address(&self, global_id: SymbolId) -> Option<SymbolId> {
-        self.heap_index.get(global_id).cloned()
+    pub fn get_heap_address(&self, global_id: SymbolId) -> Result<SymbolId, RuntimeError> {
+        if let Some(address) = self.heap_index.get(global_id) {
+            Ok(*address)
+        } else {
+            Err(RuntimeError {
+                code: ErrorCode::UndeclaredSymbol,
+                message: format!("Symbol '{}' (gid: {}) is not declared", self.get_name(global_id), global_id),
+            })
+        }
     }
 
 }

@@ -85,13 +85,13 @@ impl Heap {
         // TODO: Garbage collection and free address table
         let address = self.objects.len();
         self.objects.push(Object::none());
+        // Return a reference to the new object
         self.get_ref(address).unwrap()
     }
 
 
     /// Store the object in the heap location with the given id and update the object id.
-    pub fn set(&mut self, mut object: Object, id: usize) {
-        object.id = id;
+    pub fn set(&mut self, object: Object, id: usize) {
         self.objects[id] = object;
     }
 

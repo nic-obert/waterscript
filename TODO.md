@@ -4,6 +4,8 @@
 
 ### Todo
 
+- [ ] add load byte code file (.wsb)  
+- [ ] add save bytecode option  
 - [ ] add an interactive shell  
 
 ### In Progress

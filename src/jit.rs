@@ -2,7 +2,7 @@ use crate::error;
 use crate::symbol_table::SymbolTable;
 use crate::syntax_tree::{SyntaxTree, SyntaxNode};
 use crate::op_code::OpCode;
-use crate::object::{TypeCode, ObjId};
+use crate::object::TypeCode;
 use crate::byte_code::{ByteCode, self};
 
 
@@ -267,7 +267,7 @@ impl CodeBlock<'_> {
             SyntaxNode::Call { priority, function, arguments, line } => todo!(),
             
             SyntaxNode::Int { value, .. } => {
-                let mut code: Vec<u8> = vec![
+                let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
                 code.extend(byte_code::from_int(*value));
@@ -275,7 +275,7 @@ impl CodeBlock<'_> {
             },
             
             SyntaxNode::Float { value, .. } => {
-                let mut code: Vec<u8> = vec![
+                let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
                 code.extend(byte_code::from_float(*value));
@@ -283,7 +283,7 @@ impl CodeBlock<'_> {
             },
             
             SyntaxNode::String { value, .. } => {
-                let mut code: Vec<u8> = vec![
+                let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
                 code.extend(byte_code::from_string(value));
@@ -291,18 +291,27 @@ impl CodeBlock<'_> {
             },
 
             SyntaxNode::Boolean { value, .. } => {
-                let mut code: Vec<u8> = vec![
+                let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
                 code.extend(byte_code::from_boolean(*value));
                 code
             },
 
-            SyntaxNode::List { priority, elements, line } => todo!(),
+            SyntaxNode::List { elements, .. } => {
+                let mut code: ByteCode = vec![
+                    OpCode::MakeList as u8,
+                ];
+                code.extend(
+                    byte_code::raw_from_usize(elements.len())
+                );
+
+                code
+            },
             
             SyntaxNode::Identifier { value: name, line, .. } => {
                 let mut code: ByteCode = vec![
-                    OpCode::LoadSymbol as u8,
+                    OpCode::LoadRef as u8,
                 ];
                 // Get the symbol id, if it exists. Else, throw an error.
                 if let Some(symbol_id) = context.symbol_table.get_id(name) {
@@ -347,10 +356,13 @@ impl CodeBlock<'_> {
 
                 vec![
                     OpCode::AllocateAndPushRef as u8,
-                ]
+                ];
+
+                todo!()
             },
             
             _ => unimplemented!("Syntax node {} cannot be compiled.", self.syntax_node.get_name()),
+            
         });
     }
 
