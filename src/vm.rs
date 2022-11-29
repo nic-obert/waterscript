@@ -149,12 +149,12 @@ impl Vm<'_> {
 
 
     fn execute_code(&mut self, code: &ByteCode, script: &str, context: &Jit) {
-        let mut index: usize = 0;
+        let mut pc: usize = 0;
 
-        while index < code.len() {
+        while pc < code.len() {
 
-            let instruction: OpCode = OpCode::from(code[index]);
-            index += 1;
+            let instruction: OpCode = OpCode::from(code[pc]);
+            pc += 1;
 
             match instruction {
 
@@ -163,8 +163,8 @@ impl Vm<'_> {
                 },
 
                 OpCode::LoadRef => {
-                    let (symbol_id, to_add) = byte_code::get_id(index, code);
-                    index += to_add;
+                    let (symbol_id, to_add) = byte_code::get_id(pc, code);
+                    pc += to_add;
 
                     let address = match context.symbol_table.get_heap_address(symbol_id) {
                         Ok(address) => address,
@@ -185,11 +185,11 @@ impl Vm<'_> {
                 },
 
                 OpCode::LoadConst => {
-                    let type_code = TypeCode::from(code[index]);
-                    index += 1;
+                    let type_code = TypeCode::from(code[pc]);
+                    pc += 1;
 
-                    let (obj, to_add) = Object::from_byte_code(type_code, code, index);
-                    index += to_add;
+                    let (obj, to_add) = Object::from_byte_code(type_code, code, pc);
+                    pc += to_add;
 
                     self.stack.push(obj);
                 },
@@ -424,10 +424,13 @@ impl Vm<'_> {
                 },
 
                 OpCode::MakeList => {
-                    let (count, to_add) = byte_code::get_usize(index, code);
-                    index += to_add;
+                    let (count, to_add) = byte_code::get_usize(pc, code);
+                    pc += to_add;
 
-                    let mut list: = Vec::with_capacity(count);
+                    let mut list: Vec<Object> = Vec::with_capacity(count);
+                    for _ in 0..count {
+                        list.push(self.stack.pop_require());
+                    }
                 }
 
             }
