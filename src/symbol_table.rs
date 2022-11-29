@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use crate::{memory::Address, error_codes::{RuntimeError, ErrorCode}};
+use crate::memory::Address;
+use crate::error_codes::{RuntimeError, ErrorCode};
 
 
 pub type SymbolId = usize;

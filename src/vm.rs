@@ -2,7 +2,6 @@ use crate::op_code::OpCode;
 use crate::error_codes::{RuntimeError, ErrorCode};
 use crate::object::{Object, TypeCode, Value};
 use crate::jit::{CodeBlock, ChildrenBlock, Jit};
-use crate::symbol_table::SymbolId;
 use crate::utils::get_lines;
 use crate::memory::{Heap, ScopeStack, Address};
 use crate::byte_code::{ByteCode, self};
@@ -93,6 +92,7 @@ impl Vm<'_> {
                 self.execute_block(condition, script, jit);
             }, 
             ChildrenBlock::ListLike { elements } => {
+                // TODO: take into account scopes, funcions... they have to be discriminated
                 for element in elements {
                     self.execute_block(element, script, jit);
                 }
@@ -224,8 +224,6 @@ impl Vm<'_> {
                         self.set_error(error);
                         return;
                     }
-
-                    //self.heap.set(obj, id as usize);
                 },
                 
                 OpCode::Add => {
@@ -427,10 +425,13 @@ impl Vm<'_> {
                     let (count, to_add) = byte_code::get_usize(pc, code);
                     pc += to_add;
 
-                    let mut list: Vec<Object> = Vec::with_capacity(count);
+                    let mut elements: Vec<Object> = Vec::with_capacity(count);
                     for _ in 0..count {
-                        list.push(self.stack.pop_require());
+                        elements.push(self.stack.pop_require());
                     }
+
+                    let list_obj = Object::new(TypeCode::List, Value::List(elements));
+                    self.stack.push(list_obj);
                 }
 
             }

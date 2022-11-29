@@ -190,7 +190,7 @@ impl CodeBlock<'_> {
     /// When this function is called, the children should already be compiled.
     pub fn compile(&self, context: &Jit) {
 
-        // Interior mutability is used here to avoid having to clone the code block
+        // Interior mutability
         let self_mut = unsafe { &mut *(self as *const CodeBlock as *mut CodeBlock) };
 
         // Compile the syntax node into byte code
@@ -221,11 +221,40 @@ impl CodeBlock<'_> {
                 vec![OpCode::StoreTop as u8]
             },
 
-            SyntaxNode::AssignAdd { .. } => todo!(),
-            SyntaxNode::AssignSub { .. } => todo!(),
-            SyntaxNode::AssignMul { .. } => todo!(),
-            SyntaxNode::AssignDiv { .. } => todo!(),
-            SyntaxNode::AssignMod { .. } => todo!(),
+            SyntaxNode::AssignAdd { .. } => {
+                vec![
+                    OpCode::Add as u8,
+                    OpCode::StoreTop as u8,
+                ]
+            },
+            
+            SyntaxNode::AssignSub { .. } => {
+                vec![
+                    OpCode::Sub as u8,
+                    OpCode::StoreTop as u8,
+                ]
+            },
+            
+            SyntaxNode::AssignMul { .. } => {
+                vec![
+                    OpCode::Mul as u8,
+                    OpCode::StoreTop as u8,
+                ]
+            },
+            
+            SyntaxNode::AssignDiv { .. } => {
+                vec![
+                    OpCode::Div as u8,
+                    OpCode::StoreTop as u8,
+                ]
+            },
+            
+            SyntaxNode::AssignMod { .. } => {
+                vec![
+                    OpCode::Mod as u8,
+                    OpCode::StoreTop as u8,
+                ]
+            },
 
             SyntaxNode::And { .. } => {
                 vec![OpCode::And as u8]
@@ -332,7 +361,15 @@ impl CodeBlock<'_> {
                 ]
             },
             
-            SyntaxNode::Fun { priority, name, params, body, line } => todo!(),
+            SyntaxNode::Fun { name, params, body, .. } => {
+                // Declare the function in the symbol table
+                context.symbol_table.declare(name);
+
+               
+
+                todo!()
+            },
+            
             SyntaxNode::Return { priority, value, line } => todo!(),
             SyntaxNode::If { priority, condition, body, else_node, line } => todo!(),
             SyntaxNode::Elif { priority, condition, body, else_node, line } => todo!(),
@@ -342,27 +379,33 @@ impl CodeBlock<'_> {
             SyntaxNode::In { priority, iterable, line } => todo!(),
             SyntaxNode::Break { priority, line } => todo!(),
             SyntaxNode::Continue { priority, line } => todo!(),
-            SyntaxNode::Scope { priority, statements, line } => todo!(),
-            SyntaxNode::Parenthesis { priority, child, line } => todo!(),
+
+            SyntaxNode::Scope { .. } => {
+                vec![OpCode::PushScope as u8]
+            },
+            
+            SyntaxNode::Parenthesis { .. } => {
+                // Parenthesis are just a wrapper for the child node,
+                // so they don't have any code to execute.
+                vec![]
+            },
             
             SyntaxNode::Let { symbol_name, .. } => {
                 /*
                     1. Declare the symbol in the symbol table
-                    2. Allocate space for the object in the heap
+                    2. Allocate space for a new object in the heap
                     3. Load a reference to the object onto the stack
                 */
 
-                let symbol_id = context.symbol_table.declare(symbol_name);
+                context.symbol_table.declare(symbol_name);
 
                 vec![
                     OpCode::AllocateAndPushRef as u8,
-                ];
-
-                todo!()
+                ]
             },
             
             _ => unimplemented!("Syntax node {} cannot be compiled.", self.syntax_node.get_name()),
-            
+
         });
     }
 

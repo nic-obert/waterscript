@@ -64,20 +64,20 @@ impl From<u8> for TypeCode {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Int(i64),
     Float(f64),
     String(String),
     Bool(bool),
-    List(Vec<Address>),
+    List(Vec<Object>),
     None,
     Function(Address),
     Ref(*mut Object),
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Object {
     pub type_code: TypeCode,
     pub value: Value,
@@ -185,81 +185,81 @@ impl Object {
     /// Object representation:
     /// <type discriminator> <value>
     ///  */
-    pub fn to_byte_code(&self) -> ByteCode {
-        match self {
-            Object { type_code: TypeCode::Int, value: Value::Int(value), .. } => {
-                let mut code: ByteCode = vec![
-                    self.type_code as u8,
-                ];
-                code.extend(value.to_le_bytes());
+    // pub fn to_byte_code(&self) -> ByteCode {
+    //     match self {
+    //         Object { type_code: TypeCode::Int, value: Value::Int(value), .. } => {
+    //             let mut code: ByteCode = vec![
+    //                 self.type_code as u8,
+    //             ];
+    //             code.extend(value.to_le_bytes());
 
-                code
-            },
+    //             code
+    //         },
 
-            Object { type_code: TypeCode::Float, value: Value::Float(value), .. } => {
-                let mut code: ByteCode = vec![
-                    self.type_code as u8,
-                ];
-                code.extend(value.to_le_bytes());
+    //         Object { type_code: TypeCode::Float, value: Value::Float(value), .. } => {
+    //             let mut code: ByteCode = vec![
+    //                 self.type_code as u8,
+    //             ];
+    //             code.extend(value.to_le_bytes());
 
-                code
-            },
+    //             code
+    //         },
 
-            Object { type_code: TypeCode::String, value: Value::String(value), .. } => {
-                let mut code: ByteCode = vec![
-                    self.type_code as u8,
-                ];
-                code.extend(value.len().to_le_bytes());
-                code.extend(value.as_bytes());
+    //         Object { type_code: TypeCode::String, value: Value::String(value), .. } => {
+    //             let mut code: ByteCode = vec![
+    //                 self.type_code as u8,
+    //             ];
+    //             code.extend(value.len().to_le_bytes());
+    //             code.extend(value.as_bytes());
 
-                code
-            },
+    //             code
+    //         },
 
-            Object { type_code: TypeCode::Bool, value: Value::Bool(value), .. } => {
-                vec![
-                    self.type_code as u8,
-                    *value as u8
-                ]
-            },
+    //         Object { type_code: TypeCode::Bool, value: Value::Bool(value), .. } => {
+    //             vec![
+    //                 self.type_code as u8,
+    //                 *value as u8
+    //             ]
+    //         },
 
-            Object { type_code: TypeCode::List, value: Value::List(value), .. } => {
-                /*
-                    Byte structure of the list:
-                    - type discriminator (1 byte)
-                    - number of elements (8 bytes)
-                    - element pointers (n*8 bytes)
-                */
+    //         Object { type_code: TypeCode::List, value: Value::List(value), .. } => {
+    //             /*
+    //                 Byte structure of the list:
+    //                 - type discriminator (1 byte)
+    //                 - number of elements (8 bytes)
+    //                 - element pointers (n*8 bytes)
+    //             */
 
-                let mut code = vec![
-                    self.type_code as u8,
-                ];
-                code.extend(value.len().to_le_bytes());
+    //             let mut code = vec![
+    //                 self.type_code as u8,
+    //             ];
+    //             code.extend(value.len().to_le_bytes());
 
-                for element in value {
-                    code.extend(element.to_le_bytes());
-                }
+    //             for element in value {
+    //                 code.extend(element.to_le_bytes());
+    //             }
 
-                code
-            },
+    //             code
+    //         },
 
-            Object { type_code: TypeCode::None, value: Value::None, .. } => {
-                vec![
-                    self.type_code as u8,
-                ]
-            },
+    //         Object { type_code: TypeCode::None, value: Value::None, .. } => {
+    //             vec![
+    //                 self.type_code as u8,
+    //             ]
+    //         },
 
-            Object { type_code: TypeCode::Function, value: Value::Function(value), .. } => {
-                let mut code: ByteCode = vec![
-                    self.type_code as u8,
-                ];
-                code.extend(value.to_le_bytes());
+    //         Object { type_code: TypeCode::Function, value: Value::Function(value), .. } => {
+    //             let mut code: ByteCode = vec![
+    //                 self.type_code as u8,
+    //             ];
+    //             code.extend(value.to_le_bytes());
 
-                code
-            },
+    //             code
+    //         },
 
-            _ => unreachable!("Object {:?} cannot be converted to bytecode.", self),
-        }
-    }
+    //         _ => unreachable!("Object {:?} cannot be converted to bytecode.", self),
+    //     }
+    // }
 
 
     pub fn add(lhs: &Object, rhs: &Object) -> OpResult {
@@ -298,12 +298,13 @@ impl Object {
             },
             
             (Object { type_code: TypeCode::List, value: Value::List(lhs), .. }, Object { type_code: TypeCode::List, value: Value::List(rhs), .. }) => {
-                let mut list = lhs.clone();
-                list.extend(rhs);
+                let mut new_list: Vec<Object> = Vec::with_capacity(lhs.len() + rhs.len());
+                new_list.extend(lhs.iter().cloned());
+                new_list.extend(rhs.iter().cloned());
 
                 Ok(Object::new(
                     TypeCode::List,
-                    Value::List(list)
+                    Value::List(new_list)
                 ))
             },
         
