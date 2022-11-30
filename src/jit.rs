@@ -12,7 +12,9 @@ pub enum ChildrenBlock<'a> {
     Binary { a: Box<CodeBlock<'a>>, b: Box<CodeBlock<'a>> },
     IfLike { condition: Box<CodeBlock<'a>>, body: Vec<CodeBlock<'a>>, else_block: Option<Box<CodeBlock<'a>>> },
     ListLike { elements: Vec<CodeBlock<'a>> },
-    LoopLike { condition: Box<CodeBlock<'a>>, body: Vec<CodeBlock<'a>> },
+    LoopLike { condition: Box<CodeBlock<'a>>, body: Box<ChildrenBlock<'a>> },
+    ScopeLike { statements: Vec<CodeBlock<'a>> },
+    FunctionLike { parameters: &'a Vec<String>, body: Box<ChildrenBlock<'a>> },
 }
 
 
@@ -35,6 +37,7 @@ impl CodeBlock<'_> {
             None => false
         }
     }
+
 
     /// Recursively builds a code block tree from a syntax node.
     pub fn from_syntax_node<'a>(syntax_node: &'a SyntaxNode, script: &'a str) -> CodeBlock<'a> {
@@ -134,15 +137,27 @@ impl CodeBlock<'_> {
                 }
             },
             
-            SyntaxNode::Scope { statements: body, .. } |
             SyntaxNode::Else { body, .. } |
-            SyntaxNode::Fun { body, .. } => {
+            SyntaxNode::Scope { body, .. } => {
                 CodeBlock {
                     syntax_node: &syntax_node,
                     code: None,
-                    children: ChildrenBlock::ListLike { elements: body.statements.iter().map(
-                        |node| CodeBlock::from_syntax_node(node, script)
-                    ).collect() },
+                    children: ChildrenBlock::ScopeLike { statements: body.statements.iter().map(
+                        |statement| CodeBlock::from_syntax_node(statement, script)
+                    ).collect() }
+                }
+            },
+            
+            SyntaxNode::Fun { params, body, .. } => {
+                CodeBlock {
+                    syntax_node: &syntax_node,
+                    code: None,
+                    children: ChildrenBlock::FunctionLike {
+                        parameters: params,
+                        body: Box::new(ChildrenBlock::ScopeLike { statements: body.statements.iter().map(
+                            |statement| CodeBlock::from_syntax_node(statement, script)
+                        ).collect() })
+                    }
                 }
             },
 
@@ -154,9 +169,9 @@ impl CodeBlock<'_> {
                     code: None,
                     children: ChildrenBlock::LoopLike { 
                         condition: Box::new(CodeBlock::from_syntax_node(loop_controller, script)),
-                        body: body.statements.iter().map(
-                            |node| CodeBlock::from_syntax_node(node, script)
-                        ).collect(),
+                        body: Box::new(ChildrenBlock::ScopeLike { statements: body.statements.iter().map(
+                            |statement| CodeBlock::from_syntax_node(statement, script)
+                        ).collect() })
                     }
                 }
             },

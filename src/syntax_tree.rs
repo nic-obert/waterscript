@@ -55,7 +55,7 @@ pub enum SyntaxNode {
     Let { priority: usize, symbol_name: String, line: usize },
 
     // Grouping
-    Scope { priority: usize, statements: SyntaxTree, line: usize },
+    Scope { priority: usize, body: SyntaxTree, line: usize },
     Parenthesis { priority: usize, child: Box<SyntaxNode>, line: usize },
 
     // Misc
@@ -112,7 +112,7 @@ static ref FOR: SyntaxNode = SyntaxNode::For { priority: 0, variable: String::ne
 static ref IN: SyntaxNode = SyntaxNode::In { priority: 0, iterable: placeholder(), line: 0 };
 static ref BREAK: SyntaxNode = SyntaxNode::Break { priority: 0, line: 0 };
 static ref CONTINUE: SyntaxNode = SyntaxNode::Continue { priority: 0, line: 0 };
-static ref SCOPE: SyntaxNode = SyntaxNode::Scope { priority: 0, statements: Default::default(), line: 0 };
+static ref SCOPE: SyntaxNode = SyntaxNode::Scope { priority: 0, body: Default::default(), line: 0 };
 static ref PARENTHESIS: SyntaxNode = SyntaxNode::Parenthesis { priority: 0, child: placeholder(), line: 0 };
 
 }
@@ -635,7 +635,7 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                 i += add_index;
                 // Convert the tokens to a syntax tree recursively
                 let scope_tree = SyntaxTree::from_tokens(contents, script);
-                current_statement.push(SyntaxNode::Scope { priority: *priority, statements: scope_tree, line: *line });
+                current_statement.push(SyntaxNode::Scope { priority: *priority, body: scope_tree, line: *line });
             },
             
             Token::PlusEqual { priority, line } => {
@@ -869,7 +869,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                 };
 
                 *body = if let Some(node) = extract_node(statement, index + 1) {
-                    if let SyntaxNode::Scope { statements, .. } = node {
+                    if let SyntaxNode::Scope { body: statements, .. } = node {
                         statements
                     } else {
                         error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), SCOPE.get_name(), script);
@@ -890,7 +890,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
                 );
 
-                if let SyntaxNode::Scope { statements, .. } = body_node {
+                if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
                     error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
@@ -910,7 +910,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
                 );
 
-                if let SyntaxNode::Scope { statements, .. } = body_node {
+                if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
                     error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
@@ -962,7 +962,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
                 );
 
-                if let SyntaxNode::Scope { statements, .. } = body_node {
+                if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
                     error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
@@ -981,7 +981,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
                 );
 
-                if let SyntaxNode::Scope { statements, .. } = body_node {
+                if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
                     error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
@@ -1015,7 +1015,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
                 );
 
-                if let SyntaxNode::Scope { statements, .. } = body_node {
+                if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
                     error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);

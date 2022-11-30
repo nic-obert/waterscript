@@ -7,27 +7,18 @@ use crate::memory::{Heap, ScopeStack, Address};
 use crate::byte_code::{ByteCode, self};
 
 
-struct Function<'a> {
-    pub name: String,
-    pub parameters: Vec<String>,
-    pub body: Vec<CodeBlock<'a>>,
-}
-
-
-pub struct Vm<'a> {
+pub struct Vm {
     stack: ScopeStack,
-    functions: Vec<Function<'a>>,
     error_stack: Vec<RuntimeError>,
     heap: Heap,
 }
 
 
-impl Vm<'_> {
+impl Vm {
 
-    pub fn new() -> Vm<'static> {
+    pub fn new() -> Vm {
         Vm {
             stack: ScopeStack::new(),
-            functions: Vec::new(),
             error_stack: Vec::new(),
             heap: Heap::new(),
         }
@@ -52,7 +43,7 @@ impl Vm<'_> {
         while let Some(block) = jit.statements.get(index) {
 
             // Recursively execute the current code block and its children
-            self.execute_block(block, script, jit);
+            self.satisfy_and_execute(block, script, jit);
 
             index += 1;
         }
@@ -67,48 +58,85 @@ impl Vm<'_> {
             println!("{}", get_lines(script, block.syntax_node.get_line(), 0));
 
             // Recursively execute the current code block and its children
-            self.execute_block(block, script, jit);
+            self.satisfy_and_execute(block, script, jit);
 
             index += 1;
         }
     }
 
 
-    fn execute_block(&mut self, block: &CodeBlock, script: &str, jit: &Jit) {
-        
-        // Recursively execute the children first, if any
-        match &block.children {
-            ChildrenBlock::None => {
-                // Do nothing, there are no children to execute/compile
-            },
-            ChildrenBlock::Unary { child } => {
-                self.execute_block(child, script, jit);
-            },
-            ChildrenBlock::Binary { a, b } => {
-                self.execute_block(a, script, jit);
-                self.execute_block(b, script, jit);
-            },
-            ChildrenBlock::IfLike { condition, body: _, else_block: _ } => {
-                self.execute_block(condition, script, jit);
-            }, 
-            ChildrenBlock::ListLike { elements } => {
-                // TODO: take into account scopes, funcions... they have to be discriminated
-                for element in elements {
-                    self.execute_block(element, script, jit);
-                }
-            },
-            ChildrenBlock::LoopLike { condition, body: _ } => {
-                self.execute_block(condition, script, jit) ;
-            },
-        }
-
+    fn compile_and_execute(&mut self, block: &CodeBlock, script: &str, jit: &Jit) {
         // Compile it if it hasn't been compiled yet
         if !block.is_compiled() {
-            block.compile(jit)
+            block.compile(jit);
         }
           
         self.execute_code(block.code.as_ref().unwrap(), script, jit);
+    }
+
+
+    fn satisfy_and_execute(&mut self, block: &CodeBlock, script: &str, jit: &Jit) {
         
+        // Recursively execute the children first, if any
+        match &block.children {
+
+            ChildrenBlock::None => {
+                // There are no children to execute: just execute the current block
+                self.compile_and_execute(block, script, jit);
+            },
+            
+            ChildrenBlock::Unary { child } => {
+                // Execute the child block first
+                self.satisfy_and_execute(child, script, jit);
+
+                self.compile_and_execute(block, script, jit);
+            },
+            
+            ChildrenBlock::Binary { a, b } => {
+                self.satisfy_and_execute(a, script, jit);
+                self.satisfy_and_execute(b, script, jit);
+
+                self.compile_and_execute(block, script, jit);
+            },
+            
+            ChildrenBlock::IfLike { condition, body: _, else_block: _ } => {
+                self.satisfy_and_execute(condition, script, jit);
+                todo!()
+            }, 
+            
+            ChildrenBlock::ListLike { elements } => {
+                // TODO: take into account functions... they have to be discriminated
+                for element in elements {
+                    self.satisfy_and_execute(element, script, jit);
+                }
+
+                self.compile_and_execute(block, script, jit);
+            },
+            
+            ChildrenBlock::LoopLike { condition, body: _ } => {
+                self.satisfy_and_execute(condition, script, jit);
+                todo!()
+            },
+            
+            ChildrenBlock::ScopeLike { statements } => {
+                // Execute the push scope instruction from the current block
+                self.compile_and_execute(block, script, jit);
+
+                // Then execute the children statements inside it
+                for statement in statements {
+                    self.satisfy_and_execute(statement, script, jit);
+                }
+
+                // Finally, exit the scope
+                self.stack.pop_scope();
+
+            },
+
+            ChildrenBlock::FunctionLike { parameters, body } => {
+                todo!()
+            },
+
+        }
     }
 
 
@@ -166,6 +194,7 @@ impl Vm<'_> {
                     let (symbol_id, to_add) = byte_code::get_id(pc, code);
                     pc += to_add;
 
+                    todo!("Design another way to access symbols because the symbol table should not be accessible from the VM");
                     let address = match context.symbol_table.get_heap_address(symbol_id) {
                         Ok(address) => address,
                         Err(error) => {
@@ -195,7 +224,7 @@ impl Vm<'_> {
                 },
 
                 OpCode::PopScope => {
-                    self.stack.pop_scope();
+                    unreachable!("PopScope should not be executed");
                 },
 
                 OpCode::CallFunction => {
