@@ -80,13 +80,9 @@ impl Heap {
 
     /// Allocate space on the heap for a new object.
     /// Initialize the new object to None.
-    /// Return the address of the new object.
-    pub fn allocate_and_get_ref(&mut self) -> Object {
+    pub fn allocate(&mut self) {
         // TODO: Garbage collection and free address table
         let address = self.objects.len();
-        self.objects.push(Object::none());
-        // Return a reference to the new object
-        self.get_ref(address).unwrap()
     }
 
 

@@ -1,7 +1,7 @@
 use crate::op_code::OpCode;
 use crate::error_codes::{RuntimeError, ErrorCode};
 use crate::object::{Object, TypeCode, Value};
-use crate::jit::{CodeBlock, ChildrenBlock, Jit};
+use crate::jit::{ChildrenBlock, Jit};
 use crate::utils::get_lines;
 use crate::memory::{Heap, ScopeStack, Address};
 use crate::byte_code::{ByteCode, self};
@@ -25,12 +25,12 @@ impl Vm {
     }
 
 
-    pub fn execute(&mut self, jit: &mut Jit, script: &str, verbose: bool) -> RuntimeError {
+    pub fn execute(&mut self, jit: &mut Jit, source: &str, verbose: bool) -> RuntimeError {
 
         if verbose {
-            self.run_verbose(jit, script);
+            self.run_verbose(jit, source);
         } else {
-            self.run(jit, script);
+            self.run(jit, source);
         }
 
         self.error_stack.pop().unwrap_or_default()
@@ -50,81 +50,81 @@ impl Vm {
     }
 
 
-    fn run_verbose(&mut self, jit: &Jit, script: &str) {
+    fn run_verbose(&mut self, jit: &Jit, source: &str) {
         let mut index: usize = 0;
 
         while let Some(block) = jit.statements.get(index) {
 
-            println!("{}", get_lines(script, block.syntax_node.get_line(), 0));
+            println!("{}", get_lines(source, block.syntax_node.get_line(), 0));
 
             // Recursively execute the current code block and its children
-            self.satisfy_and_execute(block, script, jit);
+            self.satisfy_and_execute(block, source, jit);
 
             index += 1;
         }
     }
 
 
-    fn compile_and_execute(&mut self, block: &CodeBlock, script: &str, jit: &Jit) {
+    fn compile_and_execute(&mut self, block: &_CodeBlock, source: &str, jit: &Jit) {
         // Compile it if it hasn't been compiled yet
         if !block.is_compiled() {
             block.compile(jit);
         }
           
-        self.execute_code(block.code.as_ref().unwrap(), script, jit);
+        self.execute_code(block.code.as_ref().unwrap(), source, jit);
     }
 
 
-    fn satisfy_and_execute(&mut self, block: &CodeBlock, script: &str, jit: &Jit) {
+    fn satisfy_and_execute(&mut self, block: &_CodeBlock, source: &str, jit: &Jit) {
         
         // Recursively execute the children first, if any
         match &block.children {
 
             ChildrenBlock::None => {
                 // There are no children to execute: just execute the current block
-                self.compile_and_execute(block, script, jit);
+                self.compile_and_execute(block, source, jit);
             },
             
             ChildrenBlock::Unary { child } => {
                 // Execute the child block first
-                self.satisfy_and_execute(child, script, jit);
+                self.satisfy_and_execute(child, source, jit);
 
-                self.compile_and_execute(block, script, jit);
+                self.compile_and_execute(block, source, jit);
             },
             
             ChildrenBlock::Binary { a, b } => {
-                self.satisfy_and_execute(a, script, jit);
-                self.satisfy_and_execute(b, script, jit);
+                self.satisfy_and_execute(a, source, jit);
+                self.satisfy_and_execute(b, source, jit);
 
-                self.compile_and_execute(block, script, jit);
+                self.compile_and_execute(block, source, jit);
             },
             
             ChildrenBlock::IfLike { condition, body: _, else_block: _ } => {
-                self.satisfy_and_execute(condition, script, jit);
+                self.satisfy_and_execute(condition, source, jit);
                 todo!()
             }, 
             
             ChildrenBlock::ListLike { elements } => {
                 // TODO: take into account functions... they have to be discriminated
                 for element in elements {
-                    self.satisfy_and_execute(element, script, jit);
+                    self.satisfy_and_execute(element, source, jit);
                 }
 
-                self.compile_and_execute(block, script, jit);
+                self.compile_and_execute(block, source, jit);
             },
             
             ChildrenBlock::LoopLike { condition, body: _ } => {
-                self.satisfy_and_execute(condition, script, jit);
+                self.satisfy_and_execute(condition, source, jit);
                 todo!()
             },
             
             ChildrenBlock::ScopeLike { statements } => {
                 // Execute the push scope instruction from the current block
-                self.compile_and_execute(block, script, jit);
+                self.compile_and_execute(block, source, jit);
 
                 // Then execute the children statements inside it
                 for statement in statements {
-                    self.satisfy_and_execute(statement, script, jit);
+                    self.satisfy_and_execute(statement, source, jit);
                 }
 
                 // Finally, exit the scope
@@ -176,7 +176,7 @@ impl Vm {
     }
 
 
-    fn execute_code(&mut self, code: &ByteCode, script: &str, context: &Jit) {
+    fn execute_code(&mut self, code: &ByteCode, source: &str, context: &Jit) {
         let mut pc: usize = 0;
 
         while pc < code.len() {
@@ -443,11 +443,8 @@ impl Vm {
                     }
                 },
 
-                OpCode::AllocateAndPushRef => {
-                    // Allocate space for an object on the heap
-                    // and push a reference to it on the stack
-                    let obj_ref = self.heap.allocate_and_get_ref();
-                    self.stack.push(obj_ref);
+                OpCode::Allocate => {
+                    self.heap.allocate();
                 },
 
                 OpCode::MakeList => {

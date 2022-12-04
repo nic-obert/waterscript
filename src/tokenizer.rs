@@ -15,7 +15,7 @@ fn is_numeric_char(c: char) -> bool {
 }
 
 
-pub fn tokenize(script: &String) -> TokenList {
+pub fn tokenize(source: &str) -> TokenList {
 
     let mut tokens: TokenList = TokenList::new();
     let mut line: usize = 0;
@@ -26,7 +26,7 @@ pub fn tokenize(script: &String) -> TokenList {
     let mut grouping_depth: usize = 0;
     let mut is_comment: bool = false;
 
-    for ch in script.chars() {
+    for ch in source.chars() {
 
         if is_comment {
             // Ignore all characters until the end of the line
@@ -67,7 +67,7 @@ pub fn tokenize(script: &String) -> TokenList {
                             'r' => '\r',
                             '"' => '"',
                             '\\' => '\\',
-                            _ => error::invalid_escape_sequence(ch, line, &script, "Valid escape sequences are: '\\n', '\\t', '\\r', '\\\"' and '\\\\'"),
+                            _ => error::invalid_escape_sequence(ch, line, &source, "Valid escape sequences are: '\\n', '\\t', '\\r', '\\\"' and '\\\\'"),
                         });
                         string_escape = false;
                         continue;
@@ -216,7 +216,7 @@ pub fn tokenize(script: &String) -> TokenList {
                         continue;
                     }
 
-                    error::invalid_character(ch, line, &script, "Expected '&' to be followed by another '&'. Bitwise and is not supported.");
+                    error::invalid_character(ch, line, &source, "Expected '&' to be followed by another '&'. Bitwise and is not supported.");
                     // tokens.push(current_token.take().unwrap());
                     // // current_token is None after take()
                     // continue;
@@ -314,7 +314,7 @@ pub fn tokenize(script: &String) -> TokenList {
             ' ' | '\t' | '\r' => continue,
             
             // Unhandled character
-            _ => error::invalid_character(ch, line, &script, "The character is not valid in this context."),
+            _ => error::invalid_character(ch, line, &source, "The character is not valid in this context."),
         }
 
         // No code should be able to reach this point

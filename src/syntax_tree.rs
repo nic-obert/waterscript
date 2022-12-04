@@ -358,7 +358,7 @@ fn extract_node(nodes: &Vec<SyntaxNode>, index: usize) -> Option<SyntaxNode> {
 /// To be called after an open parenthesis token
 /// Returns the extracted tokens and the index of the closing parenthesis.
 /// The closing parenthesis is not included in the returned tokens.
-fn extract_parentheses_content<'a>(open_parenthesis: &Token, tokens: &'a [Token], script: &str) -> (&'a [Token], usize) {
+fn extract_parentheses_content<'a>(open_parenthesis: &Token, tokens: &'a [Token], source: &str) -> (&'a [Token], usize) {
     let mut depth: usize = 1;
 
     for (index, token) in tokens.iter().enumerate() {
@@ -373,14 +373,14 @@ fn extract_parentheses_content<'a>(open_parenthesis: &Token, tokens: &'a [Token]
         }
     }
 
-    error::unmatched_parenthesis(open_parenthesis.get_line(), script)
+    error::unmatched_parenthesis(open_parenthesis.get_line(), source)
 }
 
 
 /// To be called after an open bracket token
 /// Returns the extracted tokens and the index of the closing bracket.
 /// The closing bracket is not included in the returned tokens.
-fn extract_square_bracket_content<'a>(open_bracket: &Token, tokens: &'a [Token], script: &str) -> (&'a [Token], usize) {
+fn extract_square_bracket_content<'a>(open_bracket: &Token, tokens: &'a [Token], source: &str) -> (&'a [Token], usize) {
     let mut depth: usize = 1;
 
     for (index, token) in tokens.iter().enumerate() {
@@ -395,14 +395,14 @@ fn extract_square_bracket_content<'a>(open_bracket: &Token, tokens: &'a [Token],
         }
     }
 
-    error::unmatched_square_bracket(open_bracket.get_line(), script)
+    error::unmatched_square_bracket(open_bracket.get_line(), source)
 }
 
 
 /// To be called after an open curly brace token
 /// Returns the extracted tokens and the index of the closing brace.
 /// The closing brace is not included in the returned tokens.
-fn extract_brace_content<'a>(open_brace: &Token, tokens: &'a [Token], script: &str) -> (&'a [Token], usize) {
+fn extract_brace_content<'a>(open_brace: &Token, tokens: &'a [Token], source: &str) -> (&'a [Token], usize) {
     let mut depth: usize = 1;
 
     for (index, token) in tokens.iter().enumerate() {
@@ -417,7 +417,7 @@ fn extract_brace_content<'a>(open_brace: &Token, tokens: &'a [Token], script: &s
         }
     }
 
-    error::unmatched_curly_brace(open_brace.get_line(), script)
+    error::unmatched_curly_brace(open_brace.get_line(), source)
 }
 
 
@@ -445,7 +445,7 @@ fn split_on_commas(tokens: &[Token]) -> Vec<&[Token]> {
 }
 
 
-fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<SyntaxNode>> {
+fn tokens_to_syntax_node_statements(tokens: &[Token], source: &str) -> Vec<Vec<SyntaxNode>> {
     let mut statements: Vec<Vec<SyntaxNode>> = Vec::new();
     let mut current_statement: Vec<SyntaxNode> = Vec::new();
 
@@ -523,7 +523,7 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
             
             Token::OpenParen { priority, line } => {
                 // Extract the content of the parentheses
-                let (contents, add_index) = extract_parentheses_content(token, &tokens[i + 1..], script);
+                let (contents, add_index) = extract_parentheses_content(token, &tokens[i + 1..], source);
                 // Update the index to skip the content of the parentheses
                 i += add_index;
 
@@ -538,15 +538,15 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                         // Convert each token list to a syntax node list and parse it recursively
                         let arguments: Vec<SyntaxNode> = token_elements.iter().map(
                             |tokens| {
-                                let mut statements = tokens_to_syntax_node_statements(tokens, script);
+                                let mut statements = tokens_to_syntax_node_statements(tokens, source);
                                 if let Some(mut nodes) = statements.pop() {
                                     // Function calls should not contain more than one statement
                                     if !statements.is_empty() {
-                                        error::too_many_statements_in_parentheses(token.get_line(), script);
+                                        error::too_many_statements_in_parentheses(token.get_line(), source);
                                     }
-                                    parse_statement(&mut nodes, script)
+                                    parse_statement(&mut nodes, source)
                                 } else {
-                                    error::empty_function_argument(*line, script);
+                                    error::empty_function_argument(*line, source);
                                 }
                             }
                         ).collect();
@@ -561,23 +561,23 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                 // This is a normal parenthesis
 
                 // Convert the tokens to syntax nodes recursively
-                let mut content_statements = tokens_to_syntax_node_statements(contents, script);
+                let mut content_statements = tokens_to_syntax_node_statements(contents, source);
                 if let Some(mut content_nodes) = content_statements.pop() {
                     // Parentheses should not contain more than one statement
                     if !content_statements.is_empty() {
-                        error::too_many_statements_in_parentheses(token.get_line(), script);
+                        error::too_many_statements_in_parentheses(token.get_line(), source);
                     }
 
-                    let child = parse_statement(&mut content_nodes, script);
+                    let child = parse_statement(&mut content_nodes, source);
                     current_statement.push(SyntaxNode::Parenthesis { child: Box::new(child), priority: *priority, line: *line });
                 } else {
-                    error::empty_parentheses(token.get_line(), script);
+                    error::empty_parentheses(token.get_line(), source);
                 }
             },
             
             Token::OpenSquare { priority, line } => {
                 // Extract the content of the square brackets
-                let (contents, add_index) = extract_square_bracket_content(token, &tokens[i + 1..], script);
+                let (contents, add_index) = extract_square_bracket_content(token, &tokens[i + 1..], source);
                 // Update the index to skip the content tokens
                 i += add_index;
 
@@ -587,21 +587,21 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                         // This is a subscript operator
                         
                         // Convert the tokens to syntax nodes recursively
-                        let mut content_statements = tokens_to_syntax_node_statements(contents, script);
+                        let mut content_statements = tokens_to_syntax_node_statements(contents, source);
                         if let Some(mut content_nodes) = content_statements.pop() {
                             // Subscription should not contain more than one statement
                             if !content_statements.is_empty() {
-                                error::too_many_statements_in_square_brackets(token.get_line(), script);
+                                error::too_many_statements_in_square_brackets(token.get_line(), source);
                             }
 
-                            let child = parse_statement(&mut content_nodes, script);
+                            let child = parse_statement(&mut content_nodes, source);
                             current_statement.push(SyntaxNode::Subscript { iterable: placeholder(), index: Box::new(child), priority: *priority, line: *line });
                             
                             // Continue to skip the literal list branch
                             continue;
                         }
 
-                        error::empty_subscription(*line, script);
+                        error::empty_subscription(*line, source);
                     }
                 }
 
@@ -612,15 +612,15 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                 // Convert each token list to a syntax node list and parse it recursively
                 let elements: Vec<SyntaxNode> = token_elements.iter().map(
                     |tokens| {
-                        let mut statements = tokens_to_syntax_node_statements(tokens, script);
+                        let mut statements = tokens_to_syntax_node_statements(tokens, source);
                         if let Some(mut nodes) = statements.pop() {
                             // Literal lists should not contain more than one statement
                             if !statements.is_empty() {
-                                error::too_many_statements_in_square_brackets(token.get_line(), script);
+                                error::too_many_statements_in_square_brackets(token.get_line(), source);
                             }
-                            parse_statement(&mut nodes, script)
+                            parse_statement(&mut nodes, source)
                         } else {
-                            error::empty_list_element(*line, script);
+                            error::empty_list_element(*line, source);
                         }
                     }
                 ).collect();
@@ -630,11 +630,11 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
             
             Token::OpenBrace { priority, line } => {
                 // Extract the content of the brace
-                let (contents, add_index) = extract_brace_content(token, &tokens[i + 1..], script);
+                let (contents, add_index) = extract_brace_content(token, &tokens[i + 1..], source);
                 // Update the index to skip the content of the brace
                 i += add_index;
                 // Convert the tokens to a syntax tree recursively
-                let scope_tree = SyntaxTree::from_tokens(contents, script);
+                let scope_tree = SyntaxTree::from_tokens(contents, source);
                 current_statement.push(SyntaxNode::Scope { priority: *priority, body: scope_tree, line: *line });
             },
             
@@ -726,7 +726,7 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
                 current_statement.push(SyntaxNode::Let { priority: *priority, symbol_name: String::new(), line: *line });
             },
 
-            _ => error::invalid_token_to_syntax_node_conversion(&token, script),
+            _ => error::invalid_token_to_syntax_node_conversion(&token, source),
         }
 
         // Code below this point may be unreachable
@@ -736,23 +736,23 @@ fn tokens_to_syntax_node_statements(tokens: &[Token], script: &str) -> Vec<Vec<S
 }
 
 
-fn binary_extract(statement: &Vec<SyntaxNode>, operator_index: usize, operator: &SyntaxNode, script: &str) -> (SyntaxNode, SyntaxNode) {
-    let right = unary_extract_right(statement, operator_index, operator, script);
-    let left = unary_extract_left(statement, operator_index, operator, script);
+fn binary_extract(statement: &Vec<SyntaxNode>, operator_index: usize, operator: &SyntaxNode, source: &str) -> (SyntaxNode, SyntaxNode) {
+    let right = unary_extract_right(statement, operator_index, operator, source);
+    let left = unary_extract_left(statement, operator_index, operator, source);
     (left, right)
 }
 
 
-fn unary_extract_left(statement: &Vec<SyntaxNode>, operator_index: usize, operator: &SyntaxNode, script: &str) -> SyntaxNode {
+fn unary_extract_left(statement: &Vec<SyntaxNode>, operator_index: usize, operator: &SyntaxNode, source: &str) -> SyntaxNode {
     extract_node(statement, operator_index - 1).unwrap_or_else(
-        || error::expected_operand(operator.get_line(), operator.get_name(), script)
+        || error::expected_operand(operator.get_line(), operator.get_name(), source)
     )
 }
 
 
-fn unary_extract_right(statement: &Vec<SyntaxNode>, operator_index: usize, operator: &SyntaxNode, script: &str) -> SyntaxNode {
+fn unary_extract_right(statement: &Vec<SyntaxNode>, operator_index: usize, operator: &SyntaxNode, source: &str) -> SyntaxNode {
     extract_node(statement, operator_index + 1).unwrap_or_else(
-        || error::expected_operand(operator.get_line(), operator.get_name(), script)
+        || error::expected_operand(operator.get_line(), operator.get_name(), source)
     )
 }
 
@@ -761,7 +761,7 @@ fn unary_extract_right(statement: &Vec<SyntaxNode>, operator_index: usize, opera
 /// Transforms the one-dimensional vector into a tree with a single root node
 /// Throws an error if the root node is not unique
 /// Returns the root node
-fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode {
+fn parse_statement(statement: &mut Vec<SyntaxNode>, source: &str) -> SyntaxNode {
     loop {
 
         let (index, priority) = get_highest_priority(statement);
@@ -796,7 +796,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
             SyntaxNode::Greater { left, right, .. } |
             SyntaxNode::Less { left, right, .. }
              => {
-                (**left, **right) = binary_extract(statement, index, old_node, script);
+                (**left, **right) = binary_extract(statement, index, old_node, source);
                 statement[index - 1] = new_node;
             },
 
@@ -804,7 +804,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
             SyntaxNode::Not { operand, .. } |
             SyntaxNode::In { iterable: operand, .. }
              => {
-                **operand = unary_extract_right(statement, index, old_node, script);
+                **operand = unary_extract_right(statement, index, old_node, source);
                 statement[index] = new_node;
             },
             
@@ -812,7 +812,7 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
             SyntaxNode::Subscript { iterable: left, .. } |
             SyntaxNode::Call { function: left, .. }
              => {
-                **left = unary_extract_left(statement, index, old_node, script);
+                **left = unary_extract_left(statement, index, old_node, source);
                 statement[index - 1] = new_node;
             },
             
@@ -840,10 +840,10 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     if let SyntaxNode::Identifier { value, .. } = node {
                         value
                     } else {
-                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), IDENTIFIER.get_name(), script);
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), IDENTIFIER.get_name(), source);
                     }
                 } else {
-                    error::expected_operand(old_node.get_line(), old_node.get_name(), script);
+                    error::expected_operand(old_node.get_line(), old_node.get_name(), source);
                 };
 
                 *params = if let Some(node) = extract_node(statement, index + 1) {
@@ -856,26 +856,26 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                             if let SyntaxNode::Identifier { value, .. } = arg {
                                 param_names.push(value);
                             } else {
-                                error::wrong_operand_type(arg.get_line(), old_node.get_name(), arg.get_name(), IDENTIFIER.get_name(), script);
+                                error::wrong_operand_type(arg.get_line(), old_node.get_name(), arg.get_name(), IDENTIFIER.get_name(), source);
                             }
                         }
 
                         param_names
                     } else {
-                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), CALL.get_name(), script);
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), CALL.get_name(), source);
                     }
                 } else {
-                    error::expected_operand(old_node.get_line(), old_node.get_name(), script);
+                    error::expected_operand(old_node.get_line(), old_node.get_name(), source);
                 };
 
                 *body = if let Some(node) = extract_node(statement, index + 1) {
                     if let SyntaxNode::Scope { body: statements, .. } = node {
                         statements
                     } else {
-                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), SCOPE.get_name(), script);
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), SCOPE.get_name(), source);
                     }
                 } else {
-                    error::expected_operand(old_node.get_line(), old_node.get_name(), script);
+                    error::expected_operand(old_node.get_line(), old_node.get_name(), source);
                 };
 
                 statement[index] = new_node;
@@ -883,17 +883,17 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
 
             SyntaxNode::Elif { condition, body, .. } => {
                 *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(
-                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), source)
                 ));
 
                 let body_node = extract_node(statement, index + 1).unwrap_or_else(
-                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), source)
                 );
 
                 if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
-                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), source);
                 }
 
                 // The else_node field will be filled by the master if statement
@@ -903,17 +903,17 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
 
             SyntaxNode::If { condition, body, else_node, .. } => {
                 *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(
-                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), source)
                 ));
                 
                 let body_node = extract_node(statement, index + 1).unwrap_or_else(
-                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), source)
                 );
 
                 if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
-                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), source);
                 }
 
                 // Extract the elif chain, if present
@@ -959,13 +959,13 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
 
             SyntaxNode::Else { body, .. } => {
                 let body_node = extract_node(statement, index + 1).unwrap_or_else(
-                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), source)
                 );
 
                 if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
-                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), source);
                 }
 
                 statement[index] = new_node;
@@ -974,17 +974,17 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
             
             SyntaxNode::While { condition, body, .. } => {
                 *condition = Box::new(extract_node(statement, index+ 1).unwrap_or_else(
-                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), source)
                 ));
                 
                 let body_node = extract_node(statement, index + 1).unwrap_or_else(
-                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), source)
                 );
 
                 if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
-                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), source);
                 }
 
                 statement[index] = new_node;
@@ -995,30 +995,30 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
                     if let SyntaxNode::Identifier { value, .. } = node {
                         value
                     } else {
-                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), IDENTIFIER.get_name(), script);
+                        error::wrong_operand_type(old_node.get_line(), old_node.get_name(), node.get_name(), IDENTIFIER.get_name(), source);
                     }
                 } else {
-                    error::expected_operand(old_node.get_line(), old_node.get_name(), script);
+                    error::expected_operand(old_node.get_line(), old_node.get_name(), source);
                 };
 
                 let in_node = extract_node(statement, index + 1).unwrap_or_else(
-                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), source)
                 );
 
                 if let SyntaxNode::In { iterable: iter, .. } = in_node {
                     *iterable = Box::new(*iter);
                 } else {
-                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), in_node.get_name(), IN.get_name(), script);
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), in_node.get_name(), IN.get_name(), source);
                 }
 
                 let body_node = extract_node(statement, index + 1).unwrap_or_else(
-                    || error::expected_operand(old_node.get_line(), old_node.get_name(), script)
+                    || error::expected_operand(old_node.get_line(), old_node.get_name(), source)
                 );
 
                 if let SyntaxNode::Scope { body: statements, .. } = body_node {
                     *body = statements;
                 } else {
-                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), script);
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), body_node.get_name(), SCOPE.get_name(), source);
                 }
 
                 statement[index] = new_node;
@@ -1026,12 +1026,12 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
 
             SyntaxNode::Let { symbol_name, .. } => {
                 // Fill the symbol field with the variable name
-                let symbol_node = unary_extract_right(statement, index, old_node, script);
+                let symbol_node = unary_extract_right(statement, index, old_node, source);
                 
                 if let SyntaxNode::Identifier { value, .. } = symbol_node {
                     *symbol_name = value;
                 } else {
-                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), symbol_node.get_name(), IDENTIFIER.get_name(), script);
+                    error::wrong_operand_type(old_node.get_line(), old_node.get_name(), symbol_node.get_name(), IDENTIFIER.get_name(), source);
                 }
 
                 statement[index] = new_node;
@@ -1044,18 +1044,18 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, script: &str) -> SyntaxNode 
     if statement.len() == 1 {
         statement.pop().unwrap()
     } else {
-        error::invalid_statement(statement[0].get_line(), script);
+        error::invalid_statement(statement[0].get_line(), source);
     }
 }
 
 
 impl SyntaxTree {
 
-    pub fn from_tokens(tokens: &[Token], script: &str) -> SyntaxTree {
-        let mut raw_statements = tokens_to_syntax_node_statements(tokens, script);
+    pub fn from_tokens(tokens: &[Token], source: &str) -> SyntaxTree {
+        let mut raw_statements = tokens_to_syntax_node_statements(tokens, source);
 
         let statements = raw_statements.iter_mut().map(
-            |statement| parse_statement(statement, script)
+            |statement| parse_statement(statement, source)
         ).collect();
 
         SyntaxTree { statements }
