@@ -6,7 +6,7 @@ use crate::syntax_tree::SyntaxTree;
 
 /// Represents a scope source code block
 pub struct CodeBlock<'a> {
-    nodes: Vec<CodeNode<'a>>,
+    pub nodes: Vec<CodeNode<'a>>,
     symbols: HashMap<String, usize>,
     context: Option<*mut CodeBlock<'a>>,
 }
@@ -29,15 +29,28 @@ impl CodeBlock<'_> {
     }
 
 
-    pub fn declare_local(&mut self, name: &str) -> usize {
+    pub fn declare_local(&self, name: &str) -> usize {
+
+        // Interior mutability
+        let self_mut = unsafe {
+            &mut *(self as *const CodeBlock as *mut CodeBlock)
+        };
+
         let local_id = self.symbols.len();
-        self.symbols.insert(name.to_string(), local_id);
+        self_mut.symbols.insert(name.to_string(), local_id);
         local_id
     }
 
 
-    pub fn get_local_id(&self, name: &str) -> Option<usize> {
-        self.symbols.get(name).map(|id| *id)
+    /// Search for the given symbol id in all the available scopes
+    pub fn get_symbol_id(&self, name: &str) -> Option<usize> {
+        if let Some(id) = self.symbols.get(name) {
+            Some(*id)
+        } else if let Some(context) = self.context {
+            unsafe { (*context).get_symbol_id(name) }
+        } else {
+            None
+        }
     }
 
 }

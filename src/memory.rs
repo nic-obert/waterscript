@@ -3,40 +3,50 @@ use crate::error_codes::{ErrorCode, RuntimeError};
 
 
 pub type Address = usize;
-pub type Scope = Vec<Object>;
+
 
 pub struct ScopeStack {
-    stack: Vec<Scope>,
+    stack: Vec<Object>,
+    offsets: Vec<usize>,
+    scopes: Vec<Vec<Address>>,
 }
 
 
 impl ScopeStack {
 
+    pub fn push_address(&mut self, address: Address) {
+        self.scopes.last_mut().unwrap().push(address);
+    }
+
     pub fn new() -> Self {
         Self {
-            // Add the global scope which is always present
-            stack: vec![Scope::new()],
+            stack: Vec::new(),
+            offsets: Vec::new(),
+            scopes: Vec::new(),
         }
     }
 
     pub fn pop_require(&mut self) -> Object {
         // Operators should aways have their operands available
-        self.stack.last_mut().unwrap().pop().unwrap()
+        self.stack.pop().unwrap()
     }
 
 
     pub fn push(&mut self, obj: Object) {
-        self.stack.last_mut().unwrap().push(obj);
+        self.stack.push(obj);
     }
 
 
     pub fn pop_scope(&mut self) {
-        self.stack.pop();
+        let offset = self.offsets.pop().unwrap();
+        self.stack.truncate(offset);
+        self.scopes.pop();
     }
 
 
     pub fn push_scope(&mut self) {
-        self.stack.push(Scope::new());
+        self.offsets.push(self.stack.len());
+        self.scopes.push(Vec::new());
     }
 
 }
@@ -80,9 +90,11 @@ impl Heap {
 
     /// Allocate space on the heap for a new object.
     /// Initialize the new object to None.
-    pub fn allocate(&mut self) {
+    pub fn allocate(&mut self) -> Address {
         // TODO: Garbage collection and free address table
         let address = self.objects.len();
+        self.objects.push(Object::none());
+        address
     }
 
 

@@ -25,6 +25,12 @@ pub struct CodeNode<'a> {
 
 impl CodeNode<'_> {
 
+
+    pub fn is_compiled(&self) -> bool {
+        self.code.is_some()
+    }
+
+
     pub fn from_syntax_node<'a>(syntax_node: &'a SyntaxNode, source: &str, context: &CodeBlock) -> CodeNode<'a> {
 
         match &syntax_node {
@@ -178,14 +184,16 @@ impl CodeNode<'_> {
     }
 
 
-    pub fn compile(&mut self, context: &CodeBlock, source: &str) {
+    pub fn compile(&self, context: &CodeBlock, source: &str) {
 
-        // // Interior mutability
-        // let self_mut = unsafe { &mut *(self as *const _CodeBlock as *mut _CodeBlock) };
+        // Interior mutability
+        let self_mut = unsafe {
+            &mut *(self as *const CodeNode as *mut CodeNode)
+        };
     
         // Compile the syntax node into byte code
         // Don't care about compiling children, they should already be compiled
-        self.code = Some(match self.syntax_node {
+        self_mut.code = Some(match self.syntax_node {
     
             SyntaxNode::Add { .. } => {
                 vec![OpCode::Add as u8]
@@ -329,31 +337,17 @@ impl CodeNode<'_> {
             },
             
             SyntaxNode::Identifier { value: name, line, .. } => {
-                // let mut code: ByteCode = vec![
-                //     OpCode::LoadRef as u8,
-                // ];
-                // // Get the symbol id, if it exists. Else, throw an error.
-                // if let Some(symbol_id) = context.symbol_table.get_id(name) {
-                //     code.extend(
-                //         byte_code::from_symbol_id(symbol_id)
-                //     );
-                // } else {
-                //     error::undeclared_symbol(name, *line, source);
-                // }
-    
-                // code
-
                 // Create a vector with 9 slots for the load instruction and the symbol id
                 let mut code: ByteCode = Vec::with_capacity(9);
 
-                if let Some(symbol_id) = context.get_local_id(name) {
-                    code.push(OpCode::LoadLocalRef as u8);
-                    code.extend(byte_code::from_symbol_id(symbol_id));
+                if let Some(symbol_id) = context.get_symbol_id(name) {
+                    code.push(OpCode::LoadRef as u8);
+                    code.extend(byte_code::raw_from_usize(symbol_id));
                 } else {
-                    todo!("Handle the case of a non-local symbol");
+                    error::undeclared_symbol(name, *line, source);
                 }
 
-                todo!()
+                code
             },
     
             SyntaxNode::None { .. } => {
@@ -365,9 +359,10 @@ impl CodeNode<'_> {
             
             SyntaxNode::Fun { name, params, body, .. } => {
                 // Declare the function in the symbol table
-                context.symbol_table.declare(name);
+                context.declare_local(name);
     
                 
+
     
                 todo!()
             },
@@ -396,7 +391,7 @@ impl CodeNode<'_> {
                 context.declare_local(symbol_name);
     
                 vec![
-                    OpCode::AllocateAndPushRef as u8,
+                    OpCode::Allocate as u8,
                 ]
             },
             

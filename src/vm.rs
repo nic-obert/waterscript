@@ -1,10 +1,12 @@
+use crate::code_block::CodeBlock;
 use crate::op_code::OpCode;
 use crate::error_codes::{RuntimeError, ErrorCode};
 use crate::object::{Object, TypeCode, Value};
-use crate::jit::{ChildrenBlock, Jit};
+use crate::jit::Jit;
 use crate::utils::get_lines;
 use crate::memory::{Heap, ScopeStack, Address};
 use crate::byte_code::{ByteCode, self};
+use crate::code_node::{NodeChildren, CodeNode};
 
 
 pub struct Vm {
@@ -28,7 +30,7 @@ impl Vm {
     pub fn execute(&mut self, jit: &mut Jit, source: &str, verbose: bool) -> RuntimeError {
 
         if verbose {
-            self.run_verbose(jit, source);
+            // self.run_verbose(jit, source);
         } else {
             self.run(jit, source);
         }
@@ -38,105 +40,69 @@ impl Vm {
 
 
     fn run(&mut self, jit: &mut Jit, script: &str) {
-        let mut index: usize = 0;
-
-        while let Some(block) = jit.statements.get(index) {
-
-            // Recursively execute the current code block and its children
-            self.satisfy_and_execute(block, script, jit);
-
-            index += 1;
-        }
+        self.execute_block(&jit.root, script);
     }
 
 
-    fn run_verbose(&mut self, jit: &Jit, source: &str) {
-        let mut index: usize = 0;
+    // fn run_verbose(&mut self, jit: &Jit, source: &str) {
+    //     let mut index: usize = 0;
 
-        while let Some(block) = jit.statements.get(index) {
+    //     while let Some(block) = jit.statements.get(index) {
 
-            println!("{}", get_lines(source, block.syntax_node.get_line(), 0));
+    //         println!("{}", get_lines(source, block.syntax_node.get_line(), 0));
 
-            // Recursively execute the current code block and its children
-            self.satisfy_and_execute(block, source, jit);
+    //         // Recursively execute the current code block and its children
+    //         self.execute_block(block, source, jit);
 
-            index += 1;
-        }
-    }
-
-
-    fn compile_and_execute(&mut self, block: &_CodeBlock, source: &str, jit: &Jit) {
-        // Compile it if it hasn't been compiled yet
-        if !block.is_compiled() {
-            block.compile(jit);
-        }
-          
-        self.execute_code(block.code.as_ref().unwrap(), source, jit);
-    }
+    //         index += 1;
+    //     }
+    // }
 
 
-    fn satisfy_and_execute(&mut self, block: &_CodeBlock, source: &str, jit: &Jit) {
+    fn execute_node(&mut self, node: &CodeNode, source: &str, context: &CodeBlock) {
+        match &node.children {
+
+            NodeChildren::None => {
+                // Do nothing, there are no children to compile or execute
+            },
+            
+            NodeChildren::ListLike { children } => {
+                for child in children {
+                    self.execute_node(child, source, context);
+                }
+            },
+            
+            NodeChildren::Scope { body } => {
+                self.execute_block(body, source);
+            },
+            
+            NodeChildren::LoopLike { condition, body } => todo!(),
+            
+            NodeChildren::IfLike { condition, body, else_node } => todo!(),
+            
+            NodeChildren::Function { params, body } => {
+                // Do nothing, functions are compiled upon calling
+            },
         
-        // Recursively execute the children first, if any
-        match &block.children {
-
-            ChildrenBlock::None => {
-                // There are no children to execute: just execute the current block
-                self.compile_and_execute(block, source, jit);
-            },
-            
-            ChildrenBlock::Unary { child } => {
-                // Execute the child block first
-                self.satisfy_and_execute(child, source, jit);
-
-                self.compile_and_execute(block, source, jit);
-            },
-            
-            ChildrenBlock::Binary { a, b } => {
-                self.satisfy_and_execute(a, source, jit);
-                self.satisfy_and_execute(b, source, jit);
-
-                self.compile_and_execute(block, source, jit);
-            },
-            
-            ChildrenBlock::IfLike { condition, body: _, else_block: _ } => {
-                self.satisfy_and_execute(condition, source, jit);
-                todo!()
-            }, 
-            
-            ChildrenBlock::ListLike { elements } => {
-                // TODO: take into account functions... they have to be discriminated
-                for element in elements {
-                    self.satisfy_and_execute(element, source, jit);
-                }
-
-                self.compile_and_execute(block, source, jit);
-            },
-            
-            ChildrenBlock::LoopLike { condition, body: _ } => {
-                self.satisfy_and_execute(condition, source, jit);
-                todo!()
-            },
-            
-            ChildrenBlock::ScopeLike { statements } => {
-                // Execute the push scope instruction from the current block
-                self.compile_and_execute(block, source, jit);
-
-                // Then execute the children statements inside it
-                for statement in statements {
-                    self.satisfy_and_execute(statement, source, jit);
-                }
-
-                // Finally, exit the scope
-                self.stack.pop_scope();
-
-            },
-
-            ChildrenBlock::FunctionLike { parameters, body } => {
-                todo!()
-            },
-
         }
+
+        if !node.is_compiled() {
+            node.compile(context, source)
+        }
+
+        self.execute_code(node.code.as_ref().unwrap(), source, context);
+
+    }
+
+
+    fn execute_block(&mut self, block: &CodeBlock, source: &str) {
+        self.stack.push_scope();
+        
+        for node in &block.nodes {
+            self.execute_node(node, source, block);
+        }
+
+        self.stack.pop_scope();
     }
 
 
@@ -176,7 +142,7 @@ impl Vm {
     }
 
 
-    fn execute_code(&mut self, code: &ByteCode, source: &str, context: &Jit) {
+    fn execute_code(&mut self, code: &ByteCode, source: &str, context: &CodeBlock) {
         let mut pc: usize = 0;
 
         while pc < code.len() {
@@ -194,23 +160,25 @@ impl Vm {
                     let (symbol_id, to_add) = byte_code::get_id(pc, code);
                     pc += to_add;
 
-                    todo!("Design another way to access symbols because the symbol table should not be accessible from the VM");
-                    let address = match context.symbol_table.get_heap_address(symbol_id) {
-                        Ok(address) => address,
-                        Err(error) => {
-                            self.set_error(error);
-                            return;
-                        }
-                    };
+                    
 
-                    match self.heap.get_ref(address) {
-                        Ok(obj_ref) => {
-                            self.stack.push(obj_ref);
-                        },
-                        Err(error) => {
-                            self.set_error(error);
-                        }
-                    }
+                    todo!("Design another way to access symbols because the symbol table should not be accessible from the VM");
+                    // let address = match context.symbol_table.get_heap_address(symbol_id) {
+                    //     Ok(address) => address,
+                    //     Err(error) => {
+                    //         self.set_error(error);
+                    //         return;
+                    //     }
+                    // };
+
+                    // match self.heap.get_ref(address) {
+                    //     Ok(obj_ref) => {
+                    //         self.stack.push(obj_ref);
+                    //     },
+                    //     Err(error) => {
+                    //         self.set_error(error);
+                    //     }
+                    // }
                 },
 
                 OpCode::LoadConst => {
@@ -444,7 +412,8 @@ impl Vm {
                 },
 
                 OpCode::Allocate => {
-                    self.heap.allocate();
+                    let address = self.heap.allocate();
+                    self.stack.push_address(address);
                 },
 
                 OpCode::MakeList => {
