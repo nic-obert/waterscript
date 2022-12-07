@@ -53,6 +53,16 @@ pub fn too_many_statements_in_square_brackets(line: usize, source: &str) -> ! {
 }
 
 
+pub fn too_many_parameters(line: usize, source: &str, max: usize) -> ! {
+    error(format!("Function can only have {} parameters at line {}:\n{}\n\n", max, line, get_lines(source, line, 1)));
+}
+
+
+pub fn duplicate_parameter(line: usize, source: &str, param_name: &str) -> ! {
+    error(format!("Duplicate parameter '{}' at line {}:\n{}\n\n", param_name, line, get_lines(source, line, 1)));
+}
+
+
 pub fn empty_subscription(line: usize, source: &str) -> ! {
     error(format!("Missing index for subscript operator at line {}:\n{}\n\n", line, get_lines(source, line, 1)));
 }

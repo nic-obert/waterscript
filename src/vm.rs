@@ -3,10 +3,9 @@ use crate::op_code::OpCode;
 use crate::error_codes::{RuntimeError, ErrorCode};
 use crate::object::{Object, TypeCode, Value};
 use crate::jit::Jit;
-use crate::utils::get_lines;
 use crate::memory::{Heap, ScopeStack, Address};
 use crate::byte_code::{ByteCode, self};
-use crate::code_node::{NodeChildren, CodeNode};
+use crate::code_node::{NodeContent, CodeNode};
 
 
 pub struct Vm {
@@ -62,25 +61,25 @@ impl Vm {
     fn execute_node(&mut self, node: &CodeNode, source: &str, context: &CodeBlock) {
         match &node.children {
 
-            NodeChildren::None => {
+            NodeContent::None => {
                 // Do nothing, there are no children to compile or execute
             },
             
-            NodeChildren::ListLike { children } => {
+            NodeContent::ListLike { children } => {
                 for child in children {
                     self.execute_node(child, source, context);
                 }
             },
             
-            NodeChildren::Scope { body } => {
+            NodeContent::Scope { body } => {
                 self.execute_block(body, source);
             },
             
-            NodeChildren::LoopLike { condition, body } => todo!(),
+            NodeContent::LoopLike { condition, body } => todo!(),
             
-            NodeChildren::IfLike { condition, body, else_node } => todo!(),
+            NodeContent::IfLike { condition, body, else_node } => todo!(),
             
-            NodeChildren::Function { params, body } => {
+            NodeContent::Function { params, body } => {
                 // Do nothing, functions are compiled upon calling
             },
         
@@ -111,7 +110,7 @@ impl Vm {
     }
 
 
-    /// Return the referenced object if the given object is a reference
+    /// Return the referenced object if the given object is a reference.
     /// Return the object itself otherwise
     fn deref_object<'a>(&'a self, object_ref: &'a Object) -> &Object {
         match object_ref {
@@ -157,7 +156,7 @@ impl Vm {
                 },
 
                 OpCode::LoadRef => {
-                    let (symbol_id, to_add) = byte_code::get_id(pc, code);
+                    let (symbol_id, to_add) = byte_code::get_raw_id(pc, code);
                     pc += to_add;
 
                     
@@ -185,7 +184,7 @@ impl Vm {
                     let type_code = TypeCode::from(code[pc]);
                     pc += 1;
 
-                    let (obj, to_add) = Object::from_byte_code(type_code, code, pc);
+                    let (obj, to_add) = Object::from_byte_code_const(type_code, code, pc);
                     pc += to_add;
 
                     self.stack.push(obj);
@@ -196,21 +195,17 @@ impl Vm {
                 },
 
                 OpCode::CallFunction => {
-                    /*
-                        Function call byte code structure:
-                        - function id: 8 bytes
-                    */
+                    
                     todo!()
                 },
                 
                 OpCode::MakeFunction => {
-                    /*
-                        Function byte code structure:
-                        - id: 8 bytes
-                        - arg count: 1 byte
-                        - arg id list: arg count * 8 bytes
-                    */ 
-                    todo!()
+                    // Load the code node containing the information about the function
+                    let (node_ptr, to_add) = byte_code::get_raw_ptr::<CodeNode>(pc, code);
+                    pc += to_add;
+
+                    let func_obj = Object::new(TypeCode::Function, Value::Function(node_ptr as *mut CodeNode));
+                    self.stack.push(func_obj);
                 },
                 
                 OpCode::StoreTop => {
@@ -412,12 +407,12 @@ impl Vm {
                 },
 
                 OpCode::Allocate => {
-                    let address = self.heap.allocate();
-                    self.stack.push_address(address);
+                    let address: Address = self.heap.allocate();
+                    self.stack.push_heap_address(address);
                 },
 
                 OpCode::MakeList => {
-                    let (count, to_add) = byte_code::get_usize(pc, code);
+                    let (count, to_add) = byte_code::get_raw_usize(pc, code);
                     pc += to_add;
 
                     let mut elements: Vec<Object> = Vec::with_capacity(count);

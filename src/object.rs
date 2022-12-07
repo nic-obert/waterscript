@@ -1,3 +1,4 @@
+use crate::code_node::CodeNode;
 use crate::error_codes::{ErrorCode, RuntimeError};
 use crate::byte_code::ByteCode;
 use crate::byte_code;
@@ -72,7 +73,7 @@ pub enum Value {
     Bool(bool),
     List(Vec<Object>),
     None,
-    Function(Address),
+    Function(*mut CodeNode<'static>),
     Ref(*mut Object),
 }
 
@@ -154,22 +155,22 @@ impl Object {
     }
 
 
-    pub fn from_byte_code(type_code: TypeCode, code: &ByteCode, index: usize) -> (Object, usize) {
+    pub fn from_byte_code_const(type_code: TypeCode, code: &ByteCode, index: usize) -> (Object, usize) {
         match type_code {
             TypeCode::Int => {
-                let (number, to_add) = byte_code::get_int(index, code);
+                let (number, to_add) = byte_code::get_raw_int(index, code);
                 (Object::new(TypeCode::Int, Value::Int(number)), to_add)
             },
             TypeCode::Float => {
-                let (number, to_add) = byte_code::get_float(index, code);
+                let (number, to_add) = byte_code::get_raw_float(index, code);
                 (Object::new(TypeCode::Float, Value::Float(number as f64)), to_add)
             },
             TypeCode::String => {
-                let (string, to_add) = byte_code::get_string(index, code);
+                let (string, to_add) = byte_code::get_raw_string(index, code);
                 (Object::new(TypeCode::String, Value::String(string)), to_add)
             },
             TypeCode::Bool => {
-                let (boolean, to_add) = byte_code::get_boolean(index, code);
+                let (boolean, to_add) = byte_code::get_raw_boolean(index, code);
                 (Object::new(TypeCode::Bool, Value::Bool(boolean)), to_add)
             },
             TypeCode::None => {
@@ -179,87 +180,6 @@ impl Object {
             _ => unimplemented!("Cannot create object from byte code for type {}", type_code.name())
         }
     }
-
-
-    ///*
-    /// Object representation:
-    /// <type discriminator> <value>
-    ///  */
-    // pub fn to_byte_code(&self) -> ByteCode {
-    //     match self {
-    //         Object { type_code: TypeCode::Int, value: Value::Int(value), .. } => {
-    //             let mut code: ByteCode = vec![
-    //                 self.type_code as u8,
-    //             ];
-    //             code.extend(value.to_le_bytes());
-
-    //             code
-    //         },
-
-    //         Object { type_code: TypeCode::Float, value: Value::Float(value), .. } => {
-    //             let mut code: ByteCode = vec![
-    //                 self.type_code as u8,
-    //             ];
-    //             code.extend(value.to_le_bytes());
-
-    //             code
-    //         },
-
-    //         Object { type_code: TypeCode::String, value: Value::String(value), .. } => {
-    //             let mut code: ByteCode = vec![
-    //                 self.type_code as u8,
-    //             ];
-    //             code.extend(value.len().to_le_bytes());
-    //             code.extend(value.as_bytes());
-
-    //             code
-    //         },
-
-    //         Object { type_code: TypeCode::Bool, value: Value::Bool(value), .. } => {
-    //             vec![
-    //                 self.type_code as u8,
-    //                 *value as u8
-    //             ]
-    //         },
-
-    //         Object { type_code: TypeCode::List, value: Value::List(value), .. } => {
-    //             /*
-    //                 Byte structure of the list:
-    //                 - type discriminator (1 byte)
-    //                 - number of elements (8 bytes)
-    //                 - element pointers (n*8 bytes)
-    //             */
-
-    //             let mut code = vec![
-    //                 self.type_code as u8,
-    //             ];
-    //             code.extend(value.len().to_le_bytes());
-
-    //             for element in value {
-    //                 code.extend(element.to_le_bytes());
-    //             }
-
-    //             code
-    //         },
-
-    //         Object { type_code: TypeCode::None, value: Value::None, .. } => {
-    //             vec![
-    //                 self.type_code as u8,
-    //             ]
-    //         },
-
-    //         Object { type_code: TypeCode::Function, value: Value::Function(value), .. } => {
-    //             let mut code: ByteCode = vec![
-    //                 self.type_code as u8,
-    //             ];
-    //             code.extend(value.to_le_bytes());
-
-    //             code
-    //         },
-
-    //         _ => unreachable!("Object {:?} cannot be converted to bytecode.", self),
-    //     }
-    // }
 
 
     pub fn add(lhs: &Object, rhs: &Object) -> OpResult {

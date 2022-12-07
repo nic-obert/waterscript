@@ -14,7 +14,7 @@ pub struct ScopeStack {
 
 impl ScopeStack {
 
-    pub fn push_address(&mut self, address: Address) {
+    pub fn push_heap_address(&mut self, address: Address) {
         self.scopes.last_mut().unwrap().push(address);
     }
 

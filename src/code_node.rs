@@ -6,7 +6,7 @@ use crate::op_code::OpCode;
 use crate::syntax_tree::SyntaxNode;
 
 
-pub enum NodeChildren<'a> {
+pub enum NodeContent<'a> {
     None,
     ListLike { children: Vec<CodeNode<'a>> },
     Scope { body: CodeBlock<'a> },
@@ -19,7 +19,7 @@ pub enum NodeChildren<'a> {
 pub struct CodeNode<'a> {
     pub syntax_node: &'a SyntaxNode,
     pub code: Option<ByteCode>,
-    pub children: NodeChildren<'a>,
+    pub children: NodeContent<'a>,
 }
 
 
@@ -61,7 +61,7 @@ impl CodeNode<'_> {
                 CodeNode {
                     syntax_node,
                     code: None,
-                    children: NodeChildren::ListLike { children: vec![
+                    children: NodeContent::ListLike { children: vec![
                         CodeNode::from_syntax_node(op1, source, context),
                         CodeNode::from_syntax_node(op2, source, context),
                     ]}
@@ -77,7 +77,7 @@ impl CodeNode<'_> {
                 CodeNode {
                     syntax_node,
                     code: None,
-                    children: NodeChildren::ListLike { children: vec![
+                    children: NodeContent::ListLike { children: vec![
                         CodeNode::from_syntax_node(operand, source, context),
                     ]}
                 }
@@ -98,7 +98,7 @@ impl CodeNode<'_> {
                 CodeNode {
                     syntax_node,
                     code: None,
-                    children: NodeChildren::None,
+                    children: NodeContent::None,
                 }
             },
             
@@ -106,7 +106,7 @@ impl CodeNode<'_> {
                 CodeNode {
                     syntax_node,
                     code: None,
-                    children: NodeChildren::ListLike { children: elements.iter().map(
+                    children: NodeContent::ListLike { children: elements.iter().map(
                         |child| CodeNode::from_syntax_node(child, source, context)
                     ).collect() }
                 }
@@ -124,7 +124,7 @@ impl CodeNode<'_> {
                 CodeNode {
                     syntax_node,
                     code: None,
-                    children: NodeChildren::ListLike { children },
+                    children: NodeContent::ListLike { children },
                 }
             },
             
@@ -133,7 +133,7 @@ impl CodeNode<'_> {
                 CodeNode {
                     syntax_node,
                     code: None,
-                    children: NodeChildren::Scope { 
+                    children: NodeContent::Scope { 
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     },
                 }
@@ -143,7 +143,7 @@ impl CodeNode<'_> {
                 CodeNode {
                     syntax_node,
                     code: None,
-                    children: NodeChildren::Function {
+                    children: NodeContent::Function {
                         params,
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     }
@@ -156,7 +156,7 @@ impl CodeNode<'_> {
                 CodeNode {
                     syntax_node,
                     code: None,
-                    children: NodeChildren::LoopLike { 
+                    children: NodeContent::LoopLike { 
                         condition: Box::new(CodeNode::from_syntax_node(loop_controller, source, context)),
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     }
@@ -169,7 +169,7 @@ impl CodeNode<'_> {
                 CodeNode {
                     syntax_node,
                     code: None,
-                    children: NodeChildren::IfLike { 
+                    children: NodeContent::IfLike { 
                         condition: Box::new(CodeNode::from_syntax_node(condition, source, context)),
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock)),
                         else_node: else_node.as_ref().map(
@@ -192,7 +192,6 @@ impl CodeNode<'_> {
         };
     
         // Compile the syntax node into byte code
-        // Don't care about compiling children, they should already be compiled
         self_mut.code = Some(match self.syntax_node {
     
             SyntaxNode::Add { .. } => {
@@ -297,7 +296,7 @@ impl CodeNode<'_> {
                 let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
-                code.extend(byte_code::from_int(*value));
+                code.extend(byte_code::obj_from_int(*value));
                 code
             },
             
@@ -305,7 +304,7 @@ impl CodeNode<'_> {
                 let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
-                code.extend(byte_code::from_float(*value));
+                code.extend(byte_code::obj_from_float(*value));
                 code
             },
             
@@ -313,7 +312,7 @@ impl CodeNode<'_> {
                 let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
-                code.extend(byte_code::from_string(value));
+                code.extend(byte_code::obj_from_string(value));
                 code
             },
     
@@ -321,7 +320,7 @@ impl CodeNode<'_> {
                 let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
-                code.extend(byte_code::from_boolean(*value));
+                code.extend(byte_code::obj_from_boolean(*value));
                 code
             },
     
@@ -357,14 +356,26 @@ impl CodeNode<'_> {
                 ]
             },
             
-            SyntaxNode::Fun { name, params, body, .. } => {
-                // Declare the function in the symbol table
+            SyntaxNode::Fun { name, params, .. } => {
+                // Declare the new function in the symbol table
                 context.declare_local(name);
-    
-                
 
+                let mut code: ByteCode = vec![
+                    // Allocate space for the new function on the heap
+                    OpCode::Allocate as u8,
+                    // Load a reference to that space on the heap
+                    OpCode::LoadRef as u8,
+                    // Build the function with the following byte code
+                    OpCode::MakeFunction as u8,
+                ];
+                
+                // Push a pointer to this CodeNode containing the function
+                code.extend(byte_code::raw_from_ptr(self as *const CodeNode));
     
-                todo!()
+                // Store the new function object in the heap
+                code.push(OpCode::StoreTop as u8);
+
+                code
             },
             
             SyntaxNode::Return { priority, value, line } => todo!(),

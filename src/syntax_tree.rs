@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use lazy_static::lazy_static;
 
 use crate::token::Token;
@@ -867,6 +869,21 @@ fn parse_statement(statement: &mut Vec<SyntaxNode>, source: &str) -> SyntaxNode 
                 } else {
                     error::expected_operand(old_node.get_line(), old_node.get_name(), source);
                 };
+
+                // Check if the number of parameters is within the limit of u8
+                if params.len() > u8::MAX as usize {
+                    error::too_many_parameters(old_node.get_line(), source, u8::MAX as usize);
+                }
+
+                // Check for duplicate parameters
+                let mut param_set = HashSet::new();
+                for param in params {
+                    if param_set.contains(param) {
+                        error::duplicate_parameter(old_node.get_line(), source, param);
+                    }
+                    param_set.insert(param);
+                }
+
 
                 *body = if let Some(node) = extract_node(statement, index + 1) {
                     if let SyntaxNode::Scope { body: statements, .. } = node {
