@@ -159,25 +159,18 @@ impl Vm {
                     let (symbol_id, to_add) = byte_code::get_raw_id(pc, code);
                     pc += to_add;
 
+                    match self.stack.get_heap_address(symbol_id) {
+                        Ok(address) => {
+
+                        },
+                        Err(error) => {
+                            self.set_error(error);
+                            return;
+                        }
+                    }
                     
 
-                    todo!("Design another way to access symbols because the symbol table should not be accessible from the VM");
-                    // let address = match context.symbol_table.get_heap_address(symbol_id) {
-                    //     Ok(address) => address,
-                    //     Err(error) => {
-                    //         self.set_error(error);
-                    //         return;
-                    //     }
-                    // };
-
-                    // match self.heap.get_ref(address) {
-                    //     Ok(obj_ref) => {
-                    //         self.stack.push(obj_ref);
-                    //     },
-                    //     Err(error) => {
-                    //         self.set_error(error);
-                    //     }
-                    // }
+                    
                 },
 
                 OpCode::LoadConst => {

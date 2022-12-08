@@ -6,28 +6,37 @@ pub type Address = usize;
 
 
 pub struct ScopeStack {
+    /// The active object stack used by the VM to do operations
     stack: Vec<Object>,
-    offsets: Vec<usize>,
-    scopes: Vec<Vec<Address>>,
+    scope_offsets: Vec<usize>,
+    scopes: Vec<Address>,
 }
 
 
 impl ScopeStack {
 
     pub fn push_heap_address(&mut self, address: Address) {
-        self.scopes.last_mut().unwrap().push(address);
+        self.scopes.push(address);
     }
+
+
+    pub fn get_heap_address(&self, symbol_id: usize) -> Address {
+        
+    }
+
 
     pub fn new() -> Self {
         Self {
             stack: Vec::new(),
-            offsets: Vec::new(),
+            scope_offsets: Vec::new(),
             scopes: Vec::new(),
         }
     }
 
+
     pub fn pop_require(&mut self) -> Object {
         // Operators should aways have their operands available
+        // If this fails, there's a bug in the compiler
         self.stack.pop().unwrap()
     }
 
@@ -38,15 +47,13 @@ impl ScopeStack {
 
 
     pub fn pop_scope(&mut self) {
-        let offset = self.offsets.pop().unwrap();
-        self.stack.truncate(offset);
-        self.scopes.pop();
+        let offset = self.scope_offsets.pop().unwrap();
+        self.scopes.truncate(offset);
     }
 
 
     pub fn push_scope(&mut self) {
-        self.offsets.push(self.stack.len());
-        self.scopes.push(Vec::new());
+        self.scope_offsets.push(self.scopes.len());
     }
 
 }
@@ -65,11 +72,8 @@ const INITIAL_HEAP_SIZE: usize = 100;
 impl Heap {
 
     pub fn new() -> Self {
-        let mut objects = Vec::new();
-        objects.reserve(INITIAL_HEAP_SIZE);
-
         Self {
-            objects,
+            objects: Vec::with_capacity(INITIAL_HEAP_SIZE),
         }
     }
 
