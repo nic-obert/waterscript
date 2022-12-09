@@ -155,22 +155,38 @@ impl Vm {
                     // Do nothing
                 },
 
-                OpCode::LoadRef => {
-                    let (symbol_id, to_add) = byte_code::get_raw_id(pc, code);
+                OpCode::LoadLocalRef => {
+                    let (local_id, to_add) = byte_code::get_raw_id(pc, code);
                     pc += to_add;
 
-                    match self.stack.get_heap_address(symbol_id) {
-                        Ok(address) => {
-
+                    let address: Address = self.stack.get_heap_address_from_local_id(local_id);
+                    match self.heap.get_ref(address) {
+                        Ok(object_ref) => {
+                            self.stack.push(object_ref);
                         },
                         Err(error) => {
                             self.set_error(error);
-                            return;
                         }
                     }
-                    
+                },
 
-                    
+                OpCode::LoadGlobalRef => {
+                    let (global_id, to_add) = byte_code::get_raw_id(pc, code);
+                    pc += to_add;
+
+                    let address: Address = self.stack.get_heap_address_from_global_id(global_id);
+                    match self.heap.get_ref(address) {
+                        Ok(object_ref) => {
+                            self.stack.push(object_ref);
+                        },
+                        Err(error) => {
+                            self.set_error(error);
+                        }
+                    }
+                },
+
+                OpCode::LoadOffsetRef => {
+                    todo!()
                 },
 
                 OpCode::LoadConst => {
@@ -207,7 +223,6 @@ impl Vm {
 
                     if let Err(error) = self.assign_ref(&mut l_ref, r_obj) {
                         self.set_error(error);
-                        return;
                     }
                 },
                 
@@ -415,7 +430,7 @@ impl Vm {
 
                     let list_obj = Object::new(TypeCode::List, Value::List(elements));
                     self.stack.push(list_obj);
-                }
+                },
 
             }
 

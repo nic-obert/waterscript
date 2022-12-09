@@ -150,6 +150,11 @@ impl Object {
     }
 
 
+    pub fn destroy(&mut self) {
+        todo!("Decrease ref count in references")
+    }
+
+
     pub fn is_dead(&self) -> bool {
         self.ref_count == 0
     }

@@ -8,28 +8,38 @@ pub type Address = usize;
 pub struct ScopeStack {
     /// The active object stack used by the VM to do operations
     stack: Vec<Object>,
-    scope_offsets: Vec<usize>,
-    scopes: Vec<Address>,
+    stack_offsets: Vec<usize>,
+    heap_index_offsets: Vec<usize>,
+    heap_index: Vec<Address>,
 }
 
 
 impl ScopeStack {
 
+    /// Push a new heap address to the heap index
     pub fn push_heap_address(&mut self, address: Address) {
-        self.scopes.push(address);
+        self.heap_index.push(address);
     }
 
 
-    pub fn get_heap_address(&self, symbol_id: usize) -> Address {
-        
+    pub fn get_heap_address_from_global_id(&self, index: usize) -> Address {
+        // The index should always be valid
+        self.heap_index[index]
+    }
+
+
+    pub fn get_heap_address_from_local_id(&self, local_id: usize) -> Address {
+        // The index should always be valid
+        self.heap_index[self.stack_offsets.last().unwrap() + local_id]
     }
 
 
     pub fn new() -> Self {
         Self {
             stack: Vec::new(),
-            scope_offsets: Vec::new(),
-            scopes: Vec::new(),
+            heap_index_offsets: Vec::new(),
+            heap_index: Vec::new(),
+            stack_offsets: Vec::new(),
         }
     }
 
@@ -47,13 +57,19 @@ impl ScopeStack {
 
 
     pub fn pop_scope(&mut self) {
-        let offset = self.scope_offsets.pop().unwrap();
-        self.scopes.truncate(offset);
+        let heap_index_offset = self.heap_index_offsets.pop().unwrap();
+        self.heap_index.truncate(heap_index_offset);
+
+        let stack_offset = self.stack_offsets.pop().unwrap();
+        for mut object in self.stack.drain(stack_offset..) {
+            object.destroy();
+        }
     }
 
 
     pub fn push_scope(&mut self) {
-        self.scope_offsets.push(self.scopes.len());
+        self.heap_index_offsets.push(self.heap_index.len());
+        self.stack_offsets.push(self.stack.len());
     }
 
 }
@@ -66,7 +82,7 @@ pub struct Heap {
 }
 
 
-const INITIAL_HEAP_SIZE: usize = 100;
+const INITIAL_HEAP_SIZE: usize = 1024;
 
 
 impl Heap {
@@ -99,12 +115,6 @@ impl Heap {
         let address = self.objects.len();
         self.objects.push(Object::none());
         address
-    }
-
-
-    /// Store the object in the heap location with the given id and update the object id.
-    pub fn set(&mut self, object: Object, id: usize) {
-        self.objects[id] = object;
     }
 
 }

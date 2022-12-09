@@ -1,14 +1,16 @@
 
 
 // Max is 256
-const OP_CODE_COUNT: usize = 27;
+const OP_CODE_COUNT: usize = 29;
 
 
 #[derive(Clone, Copy)]
 pub enum OpCode {
 
     Nop,
-    LoadRef,
+    LoadLocalRef,
+    LoadGlobalRef,
+    LoadOffsetRef,
     LoadConst,
     PopScope,
     CallFunction,
@@ -40,7 +42,9 @@ pub enum OpCode {
 
 const OP_CODE_NAMES: [&'static str; OP_CODE_COUNT] = [
     "Nop",
-    "LoadRef",
+    "LoadLocalRef",
+    "LoadGlobalRef",
+    "LoadOffsetRef",
     "LoadConst",
     "PopScope",
     "CallFunction",

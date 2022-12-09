@@ -1,4 +1,4 @@
-use crate::code_block::CodeBlock;
+use crate::code_block::{CodeBlock, ScopeType};
 use crate::byte_code::{ByteCode, self};
 use crate::error;
 use crate::object::TypeCode;
@@ -336,12 +336,19 @@ impl CodeNode<'_> {
             },
             
             SyntaxNode::Identifier { value: name, line, .. } => {
-                // Create a vector with 9 slots for the load instruction and the symbol id
+                // Create a vector with 9 slots for the load instruction (1 byte) and the symbol id (8 bytes)
                 let mut code: ByteCode = Vec::with_capacity(9);
 
-                if let Some(symbol_id) = context.get_symbol_id(name) {
-                    code.push(OpCode::LoadRef as u8);
+                if let Some((symbol_id, scope_type)) = context.get_symbol_id(name, true) {
+                    
+                    match scope_type {
+                        ScopeType::Local => code.push(OpCode::LoadLocalRef as u8),
+                        ScopeType::Global => code.push(OpCode::LoadGlobalRef as u8),
+                        ScopeType::Outer => code.push(OpCode::LoadOffsetRef as u8),
+                    }
+
                     code.extend(byte_code::raw_from_usize(symbol_id));
+
                 } else {
                     error::undeclared_symbol(name, *line, source);
                 }
@@ -356,7 +363,7 @@ impl CodeNode<'_> {
                 ]
             },
             
-            SyntaxNode::Fun { name, params, .. } => {
+            SyntaxNode::Fun { name, .. } => {
                 // Declare the new function in the symbol table
                 context.declare_local(name);
 
@@ -364,7 +371,7 @@ impl CodeNode<'_> {
                     // Allocate space for the new function on the heap
                     OpCode::Allocate as u8,
                     // Load a reference to that space on the heap
-                    OpCode::LoadRef as u8,
+                    OpCode::LoadLocalRef as u8,
                     // Build the function with the following byte code
                     OpCode::MakeFunction as u8,
                 ];
