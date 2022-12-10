@@ -186,7 +186,21 @@ impl Vm {
                 },
 
                 OpCode::LoadOffsetRef => {
-                    todo!()
+                    let (local_id, to_add) = byte_code::get_raw_id(pc, code);
+                    pc += to_add;
+
+                    let (scope_offset, to_add) = byte_code::get_raw_id(pc, code);
+                    pc += to_add;
+
+                    let address: Address = self.stack.get_heap_address_from_offsets(local_id, scope_offset);
+                    match self.heap.get_ref(address) {
+                        Ok(object_ref) => {
+                            self.stack.push(object_ref);
+                        },
+                        Err(error) => {
+                            self.set_error(error);
+                        }
+                    }
                 },
 
                 OpCode::LoadConst => {

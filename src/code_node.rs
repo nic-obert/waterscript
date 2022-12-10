@@ -339,15 +339,23 @@ impl CodeNode<'_> {
                 // Create a vector with 9 slots for the load instruction (1 byte) and the symbol id (8 bytes)
                 let mut code: ByteCode = Vec::with_capacity(9);
 
-                if let Some((symbol_id, scope_type)) = context.get_symbol_id(name, true) {
+                if let Some(st) = context.get_symbol_id(name, 0) {
                     
-                    match scope_type {
-                        ScopeType::Local => code.push(OpCode::LoadLocalRef as u8),
-                        ScopeType::Global => code.push(OpCode::LoadGlobalRef as u8),
-                        ScopeType::Outer => code.push(OpCode::LoadOffsetRef as u8),
+                    match st {
+                        ScopeType::Local { local_id } => {
+                            code.push(OpCode::LoadLocalRef as u8);
+                            code.extend(byte_code::raw_from_usize(local_id));
+                        },
+                        ScopeType::Global { global_id } => {
+                            code.push(OpCode::LoadGlobalRef as u8);
+                            code.extend(byte_code::raw_from_usize(global_id));
+                        },
+                        ScopeType::Outer { local_id, scope_offset } => {
+                            code.push(OpCode::LoadOffsetRef as u8);
+                            code.extend(byte_code::raw_from_usize(local_id));
+                            code.extend(byte_code::raw_from_usize(scope_offset));
+                        },
                     }
-
-                    code.extend(byte_code::raw_from_usize(symbol_id));
 
                 } else {
                     error::undeclared_symbol(name, *line, source);

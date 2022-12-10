@@ -34,6 +34,14 @@ impl ScopeStack {
     }
 
 
+    pub fn get_heap_address_from_offsets(&self, local_id: usize, scope_offset: usize) -> Address {
+        // The index should always be valid
+        let current_scope_offset = self.stack_offsets.last().unwrap();
+        let target_scope_offset = self.stack_offsets[self.stack_offsets.len() - 1 - scope_offset];
+        self.heap_index[target_scope_offset - current_scope_offset + local_id]
+    }
+
+
     pub fn new() -> Self {
         Self {
             stack: Vec::new(),
