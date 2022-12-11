@@ -8,9 +8,29 @@ use crate::byte_code::{ByteCode, self};
 use crate::code_node::{NodeContent, CodeNode};
 
 
+struct FunctionCall {
+    /// The object stack index where the return value is stored.
+    pub return_index: usize,
+    /// The function that was called.
+    pub function: *const CodeNode<'static>,
+}
+
+
+impl FunctionCall {
+
+    pub fn new(return_index: usize, function: *const CodeNode<'static>) -> Self {
+        Self { 
+            return_index, 
+            function,
+        }
+    }
+
+}
+
+
 pub struct Vm {
     stack: ScopeStack,
-    error_stack: Vec<RuntimeError>,
+    call_stack: Vec<FunctionCall>,
     heap: Heap,
 }
 
@@ -20,8 +40,8 @@ impl Vm {
     pub fn new() -> Vm {
         Vm {
             stack: ScopeStack::new(),
-            error_stack: Vec::new(),
             heap: Heap::new(),
+            call_stack: Vec::new(),
         }
     }
 
@@ -34,7 +54,7 @@ impl Vm {
             self.run(jit, source);
         }
 
-        self.error_stack.pop().unwrap_or_default()
+        RuntimeError::no_error()
     }
 
 
@@ -43,6 +63,7 @@ impl Vm {
     }
 
 
+    // TODO: reimplement this
     // fn run_verbose(&mut self, jit: &Jit, source: &str) {
     //     let mut index: usize = 0;
 
@@ -85,11 +106,8 @@ impl Vm {
         
         }
 
-        if !node.is_compiled() {
-            node.compile(context, source)
-        }
-
-        self.execute_code(node.code.as_ref().unwrap(), source, context);
+        let code: &ByteCode = node.get_code(context, source);
+        self.execute_code(code, source, context);
 
     }
 
@@ -105,14 +123,15 @@ impl Vm {
     }
 
 
-    fn set_error(&mut self, error: RuntimeError) {
-        self.error_stack.push(error);
+    fn throw_error(&mut self, error: RuntimeError) -> ! {
+        // TODO: do something if debug mode is on
+        error.raise();
     }
 
 
     /// Return the referenced object if the given object is a reference.
     /// Return the object itself otherwise
-    fn deref_object<'a>(&'a self, object_ref: &'a Object) -> &Object {
+    fn deref_if_ref<'a>(&'a self, object_ref: &'a Object) -> &Object {
         match object_ref {
             Object { type_code: TypeCode::Ref, value: Value::Ref(object_ptr), .. } => {
                 unsafe {
@@ -133,10 +152,10 @@ impl Vm {
             }
             Ok(())
         } else {
-            Err(RuntimeError {
-                code: ErrorCode::TypeError,
-                message: "Cannot assign to non-reference".to_string(),
-            })
+            Err(RuntimeError::with_message(
+                ErrorCode::TypeError,
+                "Cannot assign to non-reference".to_owned(),
+            ))
         }
     }
 
@@ -165,7 +184,7 @@ impl Vm {
                             self.stack.push(object_ref);
                         },
                         Err(error) => {
-                            self.set_error(error);
+                            self.throw_error(error);
                         }
                     }
                 },
@@ -180,7 +199,7 @@ impl Vm {
                             self.stack.push(object_ref);
                         },
                         Err(error) => {
-                            self.set_error(error);
+                            self.throw_error(error);
                         }
                     }
                 },
@@ -198,7 +217,7 @@ impl Vm {
                             self.stack.push(object_ref);
                         },
                         Err(error) => {
-                            self.set_error(error);
+                            self.throw_error(error);
                         }
                     }
                 },
@@ -214,12 +233,51 @@ impl Vm {
                 },
 
                 OpCode::PopScope => {
+                    // TODO: make it reachable
                     unreachable!("PopScope should not be executed");
                 },
 
                 OpCode::CallFunction => {
+                    // Load the 1-byte argument count from the byte code
+                    let arg_count = code[pc] as usize;
+                    pc += 1;
+
+                    // Load the arguments
+                    let mut arguments: Vec<Object> = Vec::with_capacity(arg_count);
+                    for _ in 0..arg_count {
+                        arguments.push(self.stack.pop_require());
+                    }
+
+                    // Load the callable object
+                    let callable = self.stack.pop_require();
+                    let callable = self.deref_if_ref(&callable);
+
+                    // Get the function to call and check if the object is callable
+                    let code_node_ptr: *mut CodeNode = match callable {
+                        Object { type_code: TypeCode::Function, value: Value::Function(code_node), .. } => {
+                            *code_node
+                        },
+                        _ => {
+                            self.throw_error(RuntimeError::with_message(
+                                ErrorCode::TypeError,
+                                "Object is not callable".to_owned()
+                            ));
+                        }
+                    };
                     
-                    todo!()
+                    // Push the function call to the runtime call stack
+                    self.call_stack.push(FunctionCall::new(
+                        self.stack.get_last_stack_index(),
+                        code_node_ptr
+                    ));
+
+                    let code_node: &mut CodeNode = unsafe {
+                        &mut *code_node_ptr
+                    };
+
+                    // Call the function
+                    self.execute_node(code_node, source, context);
+                    
                 },
                 
                 OpCode::MakeFunction => {
@@ -236,7 +294,7 @@ impl Vm {
                     let mut l_ref = self.stack.pop_require();
 
                     if let Err(error) = self.assign_ref(&mut l_ref, r_obj) {
-                        self.set_error(error);
+                        self.throw_error(error);
                     }
                 },
                 
@@ -244,12 +302,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::add(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -257,12 +315,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::sub(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -270,12 +328,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::mul(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -283,12 +341,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::div(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -296,12 +354,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::rem(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -309,8 +367,8 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     self.stack.push(
                         Object::new(TypeCode::Bool, Value::Bool(Object::eq(a, b)))
@@ -321,8 +379,8 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     self.stack.push(
                         Object::new(TypeCode::Bool, Value::Bool(Object::ne(a, b)))
@@ -332,11 +390,11 @@ impl Vm {
                 OpCode::Not => {
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
+                    let a = self.deref_if_ref(&a);
 
                     match Object::not(a) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),                        
+                        Err(error_code) => self.throw_error(error_code),                        
                     }
                 },
                 
@@ -354,12 +412,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::and(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -367,12 +425,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::or(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -380,12 +438,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::greater(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -393,12 +451,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::greater_eq(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -406,12 +464,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::less(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
                 
@@ -419,12 +477,12 @@ impl Vm {
                     let b = self.stack.pop_require();
                     let a = self.stack.pop_require();
 
-                    let a = self.deref_object(&a);
-                    let b = self.deref_object(&b);
+                    let a = self.deref_if_ref(&a);
+                    let b = self.deref_if_ref(&b);
 
                     match Object::less_eq(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.set_error(error_code),
+                        Err(error_code) => self.throw_error(error_code),
                     }
                 },
 

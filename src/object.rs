@@ -2,7 +2,6 @@ use crate::code_node::CodeNode;
 use crate::error_codes::{ErrorCode, RuntimeError};
 use crate::byte_code::ByteCode;
 use crate::byte_code;
-use crate::memory::Address;
 
 
 pub enum TypeSize {
@@ -116,7 +115,7 @@ impl Object {
                 Ok(false)
             },
             _ => {
-                Err(RuntimeError::new(ErrorCode::TypeError, format!("Cannot convert {} to bool", self.type_code.name())))
+                Err(RuntimeError::with_message(ErrorCode::TypeError, format!("Cannot convert {} to bool", self.type_code.name())))
             }
         }
     }
@@ -233,7 +232,7 @@ impl Object {
                 ))
             },
         
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeError::with_message(
                 ErrorCode::TypeError,
                 format!("Cannot add {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
@@ -272,7 +271,7 @@ impl Object {
                 ))
             },
         
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeError::with_message(
                 ErrorCode::TypeError,
                 format!("Cannot subtract {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
@@ -311,7 +310,7 @@ impl Object {
                 ))
             },
         
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeError::with_message(
                 ErrorCode::TypeError,
                 format!("Cannot multiply {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
@@ -323,7 +322,7 @@ impl Object {
         match (lhs, rhs) {
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
-                    return Err(RuntimeError::new(
+                    return Err(RuntimeError::with_message(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -336,7 +335,7 @@ impl Object {
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
-                    return Err(RuntimeError::new(
+                    return Err(RuntimeError::with_message(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -349,7 +348,7 @@ impl Object {
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
-                    return Err(RuntimeError::new(
+                    return Err(RuntimeError::with_message(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -362,7 +361,7 @@ impl Object {
             },
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
-                    return Err(RuntimeError::new(
+                    return Err(RuntimeError::with_message(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -374,7 +373,7 @@ impl Object {
                 ))
             },
         
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeError::with_message(
                 ErrorCode::TypeError,
                 format!("Cannot divide {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
@@ -386,7 +385,7 @@ impl Object {
         match (lhs, rhs) {
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
-                    return Err(RuntimeError::new(
+                    return Err(RuntimeError::with_message(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -399,7 +398,7 @@ impl Object {
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
-                    return Err(RuntimeError::new(
+                    return Err(RuntimeError::with_message(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -412,7 +411,7 @@ impl Object {
             },
             (Object { type_code: TypeCode::Float, value: Value::Float(lhs), ..}, Object { type_code: TypeCode::Int, value: Value::Int(rhs), .. }) => {
                 if *rhs == 0 {
-                    return Err(RuntimeError::new(
+                    return Err(RuntimeError::with_message(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -425,7 +424,7 @@ impl Object {
             },
             (Object { type_code: TypeCode::Int, value: Value::Int(lhs), .. }, Object { type_code: TypeCode::Float, value: Value::Float(rhs), .. }) => {
                 if *rhs == 0.0 {
-                    return Err(RuntimeError::new(
+                    return Err(RuntimeError::with_message(
                         ErrorCode::ZeroDivision,
                         "Cannot divide by zero".to_string()
                     ));
@@ -437,7 +436,7 @@ impl Object {
                 ))
             },
         
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeError::with_message(
                 ErrorCode::TypeError,
                 format!("Cannot divide {} and {}", lhs.type_code.name(), rhs.type_code.name())
             )),
@@ -541,7 +540,7 @@ impl Object {
             (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
                 Ok(Object::new(TypeCode::Bool, Value::Bool(*a as f64 > *b)))
             },
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeError::with_message(
                 ErrorCode::TypeError,
                 format!("Cannot compare {} and {}", a.type_code.name(), b.type_code.name())
             )),
@@ -563,7 +562,7 @@ impl Object {
             (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
                 Ok(Object::new(TypeCode::Bool, Value::Bool(*a as f64 >= *b)))
             },
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeError::with_message(
                 ErrorCode::TypeError,
                 format!("Cannot compare {} and {}", a.type_code.name(), b.type_code.name())
             )),
@@ -585,7 +584,7 @@ impl Object {
             (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
                 Ok(Object::new(TypeCode::Bool, Value::Bool((*a as f64) < *b)))
             },
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeError::with_message(
                 ErrorCode::TypeError,
                 format!("Cannot compare {} and {}", a.type_code.name(), b.type_code.name())
             )),
@@ -607,7 +606,7 @@ impl Object {
             (Object { type_code: TypeCode::Int, value: Value::Int(a), .. }, Object { type_code: TypeCode::Float, value: Value::Float(b), .. }) => {
                 Ok(Object::new(TypeCode::Bool, Value::Bool(*a as f64 <= *b)))
             },
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeError::with_message(
                 ErrorCode::TypeError,
                 format!("Cannot compare {} and {}", a.type_code.name(), b.type_code.name())
             )),

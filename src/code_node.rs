@@ -7,9 +7,13 @@ use crate::syntax_tree::SyntaxNode;
 
 
 pub enum NodeContent<'a> {
+    /// The node has no children to be executed.
     None,
+    /// The node requires all its children to be executed before it.
     ListLike { children: Vec<CodeNode<'a>> },
+    /// The node is a scope.
     Scope { body: CodeBlock<'a> },
+    /// The node is a loop and requires its condition to be executed before the body.
     LoopLike { condition: Box<CodeNode<'a>>, body: CodeBlock<'a> },
     IfLike { condition: Box<CodeNode<'a>>, body: CodeBlock<'a>, else_node: Option<Box<CodeNode<'a>>> },
     Function { params: &'a Vec<String>, body: CodeBlock<'a> },
@@ -18,7 +22,7 @@ pub enum NodeContent<'a> {
 
 pub struct CodeNode<'a> {
     pub syntax_node: &'a SyntaxNode,
-    pub code: Option<ByteCode>,
+    code: Option<ByteCode>,
     pub children: NodeContent<'a>,
 }
 
@@ -26,8 +30,13 @@ pub struct CodeNode<'a> {
 impl CodeNode<'_> {
 
 
-    pub fn is_compiled(&self) -> bool {
-        self.code.is_some()
+    pub fn get_code(&self, context: &CodeBlock, source: &str) -> &ByteCode {
+        if let Some(code) = &self.code {
+            code
+        } else {
+            self.compile(context, source);
+            self.code.as_ref().unwrap()
+        }
     }
 
 
@@ -290,7 +299,17 @@ impl CodeNode<'_> {
             },
     
             SyntaxNode::Subscript { priority, iterable, index, line } => todo!(),
-            SyntaxNode::Call { priority, function, arguments, line } => todo!(),
+
+            SyntaxNode::Call { arguments, .. } => {
+                vec![
+                    // Push a placeholder object on the stack to store the return value
+                    OpCode::LoadConst as u8,
+                    TypeCode::None as u8,
+                    // Call the function with n arguments
+                    OpCode::CallFunction as u8,
+                    arguments.len() as u8,
+                ]
+            },
             
             SyntaxNode::Int { value, .. } => {
                 let mut code: ByteCode = vec![
@@ -339,9 +358,9 @@ impl CodeNode<'_> {
                 // Create a vector with 9 slots for the load instruction (1 byte) and the symbol id (8 bytes)
                 let mut code: ByteCode = Vec::with_capacity(9);
 
-                if let Some(st) = context.get_symbol_id(name, 0) {
+                if let Some(scope_type) = context.get_symbol_id(name, 0) {
                     
-                    match st {
+                    match scope_type {
                         ScopeType::Local { local_id } => {
                             code.push(OpCode::LoadLocalRef as u8);
                             code.extend(byte_code::raw_from_usize(local_id));

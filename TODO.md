@@ -4,15 +4,13 @@
 
 ### Todo
 
-- [ ] add load byte code file (.wsb)  
-- [ ] add save bytecode option  
 - [ ] add an interactive shell  
 
 ### In Progress
 
-- [ ] create python-like byte code and vm  
 
 ### Done ✓
 
+- [x] create python-like byte code and vm  
 - [x] create syntax tree and syntax nodes that represent operations  
 

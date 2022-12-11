@@ -11,7 +11,6 @@ mod error_codes;
 mod utils;
 mod memory;
 mod byte_code;
-mod symbol_table;
 mod code_block;
 mod code_node;
 

@@ -1,11 +1,12 @@
 use std::mem;
 
 use crate::object::{TypeSize, TypeCode};
-use crate::symbol_table::SymbolId;
 
 
 pub type ByteCode = Vec<u8>;
 pub const PTR_SIZE: usize = mem::size_of::<usize>();
+pub type SymbolID = usize;
+pub const ID_SIZE: usize = mem::size_of::<SymbolID>();
 
 
 pub fn raw_from_usize(value: usize) -> [u8; PTR_SIZE] {
@@ -54,11 +55,11 @@ pub fn raw_from_ptr<T>(ptr: *const T) -> [u8; PTR_SIZE] {
 }
 
 
-pub fn get_raw_id(index: usize, code: &ByteCode) -> (SymbolId, usize) {
+pub fn get_raw_id(index: usize, code: &ByteCode) -> (SymbolID, usize) {
     (unsafe {
-        mem::transmute::<[u8; mem::size_of::<SymbolId>()], SymbolId>(
-            code[index .. index + mem::size_of::<SymbolId>()].try_into().unwrap())
-    }, mem::size_of::<SymbolId>())
+        mem::transmute::<[u8; ID_SIZE], SymbolID>(
+            code[index .. index + ID_SIZE].try_into().unwrap())
+    }, ID_SIZE)
 }
 
 

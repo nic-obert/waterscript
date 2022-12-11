@@ -3,29 +3,45 @@
 #[derive(Debug)]
 pub struct RuntimeError {
     pub code: ErrorCode,
-    pub message: String,
+    pub message: Option<String>,
 }
 
 
 impl RuntimeError {
 
-    pub fn new(code: ErrorCode, message: String) -> Self {
+    pub fn no_error() -> Self {
+        Self {
+            code: ErrorCode::Ok,
+            message: None,
+        }
+    }
+
+
+    pub fn with_message(code: ErrorCode, message: String) -> Self {
+        Self {
+            code,
+            message: Some(message),
+        }
+    }
+
+
+    pub fn new(code: ErrorCode, message: Option<String>) -> Self {
         Self {
             code,
             message,
         }
     }
 
-}
-
-
-impl std::default::Default for RuntimeError {
-    fn default() -> Self {
-        Self {
-            code: ErrorCode::Ok,
-            message: String::new(),
+    
+    pub fn raise(&self) -> ! {
+        if let Some(message) = &self.message {
+            eprintln!("{}: {}", self.code.name(), message);
+        } else {
+            eprintln!("{}", self.code.name());
         }
+        std::process::exit(self.code as i32);
     }
+
 }
 
 
