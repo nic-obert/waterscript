@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use lazy_static::lazy_static;
 
-use crate::token::Token;
-use crate::error;
+use super::token::Token;
+use super::error;
 
 
 /// Represents a syntax unit with meaning.

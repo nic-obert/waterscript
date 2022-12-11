@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::code_node::CodeNode;
-use crate::syntax_tree::SyntaxTree;
+use super::code_node::CodeNode;
+use super::syntax_tree::SyntaxTree;
 
 
 /// Represents a scope source code block

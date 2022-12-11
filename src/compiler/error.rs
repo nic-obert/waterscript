@@ -1,5 +1,5 @@
-use crate::token::Token;
-use crate::utils::get_lines;
+use super::token::Token;
+use crate::utils::string::get_lines;
 
 
 fn error(message: String) -> ! {

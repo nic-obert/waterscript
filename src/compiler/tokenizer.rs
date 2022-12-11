@@ -1,5 +1,5 @@
-use crate::token::{Token, TokenList, Priority, string_to_keyword};
-use crate::error;
+use super::token::{Token, TokenList, Priority, string_to_keyword};
+use super::error;
 
 
 fn is_name_char(c: char) -> bool {

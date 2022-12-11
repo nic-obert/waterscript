@@ -1,11 +1,11 @@
-use crate::code_block::CodeBlock;
-use crate::op_code::OpCode;
-use crate::error_codes::{RuntimeError, ErrorCode};
-use crate::object::{Object, TypeCode, Value};
-use crate::jit::Jit;
-use crate::memory::{Heap, ScopeStack, Address};
-use crate::byte_code::{ByteCode, self};
-use crate::code_node::{NodeContent, CodeNode};
+use crate::compiler::code_block::CodeBlock;
+use super::op_code::OpCode;
+use super::error_codes::{RuntimeError, ErrorCode};
+use crate::lang::object::{Object, TypeCode, Value};
+use crate::compiler::jit::Jit;
+use super::memory::{Heap, ScopeStack, Address};
+use crate::utils::byte_code::{ByteCode, self};
+use crate::compiler::code_node::{NodeContent, CodeNode};
 
 
 struct FunctionCall {

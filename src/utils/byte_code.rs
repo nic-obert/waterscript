@@ -1,6 +1,6 @@
 use std::mem;
 
-use crate::object::{TypeSize, TypeCode};
+use crate::lang::object::{TypeSize, TypeCode};
 
 
 pub type ByteCode = Vec<u8>;

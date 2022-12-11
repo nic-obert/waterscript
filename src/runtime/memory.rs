@@ -1,5 +1,5 @@
-use crate::object::{Object, OpResult};
-use crate::error_codes::{ErrorCode, RuntimeError};
+use crate::lang::object::{Object, OpResult};
+use crate::runtime::error_codes::{ErrorCode, RuntimeError};
 
 
 pub type Address = usize;

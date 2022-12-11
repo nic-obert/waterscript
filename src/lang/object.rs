@@ -1,7 +1,7 @@
-use crate::code_node::CodeNode;
-use crate::error_codes::{ErrorCode, RuntimeError};
-use crate::byte_code::ByteCode;
-use crate::byte_code;
+use crate::compiler::code_node::CodeNode;
+use crate::runtime::error_codes::{ErrorCode, RuntimeError};
+use crate::utils::byte_code::{ByteCode, self};
+
 
 
 pub enum TypeSize {

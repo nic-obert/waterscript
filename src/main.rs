@@ -1,19 +1,7 @@
-mod files;
-mod token;
-mod vm;
-mod syntax_tree;
-mod tokenizer;
-mod object;
-mod error;
-mod op_code;
-mod jit;
-mod error_codes;
 mod utils;
-mod memory;
-mod byte_code;
-mod code_block;
-mod code_node;
-
+mod compiler;
+mod lang;
+mod runtime;
 
 use clap::Parser;
 use std::path::PathBuf;
@@ -42,15 +30,15 @@ fn main() {
     
     let args = Cli::parse();
 
-    let source = files::load_file(&args.input_file);
+    let source = utils::files::load_file(&args.input_file);
 
-    let mut tokens = tokenizer::tokenize(&source);
+    let mut tokens = compiler::tokenizer::tokenize(&source);
 
-    let syntax_tree = syntax_tree::SyntaxTree::from_tokens(&mut tokens.extract_tokens(), &source);
+    let syntax_tree = compiler::syntax_tree::SyntaxTree::from_tokens(&mut tokens.extract_tokens(), &source);
     
-    let mut jit = jit::Jit::from_syntax_tree(&syntax_tree, &source);
+    let mut jit = compiler::jit::Jit::from_syntax_tree(&syntax_tree, &source);
 
-    let mut vm = vm::Vm::new();
+    let mut vm = runtime::vm::Vm::new();
     let status = vm.execute(&mut jit, &source, args.verbose);
 
     if !args.quiet {

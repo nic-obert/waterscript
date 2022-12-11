@@ -1,9 +1,9 @@
-use crate::code_block::{CodeBlock, ScopeType};
-use crate::byte_code::{ByteCode, self};
-use crate::error;
-use crate::object::TypeCode;
-use crate::op_code::OpCode;
-use crate::syntax_tree::SyntaxNode;
+use super::code_block::{CodeBlock, ScopeType};
+use crate::utils::byte_code::{ByteCode, self};
+use super::error;
+use crate::lang::object::TypeCode;
+use crate::runtime::op_code::OpCode;
+use super::syntax_tree::SyntaxNode;
 
 
 pub enum NodeContent<'a> {

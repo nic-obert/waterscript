@@ -1,5 +1,5 @@
-use crate::code_block::CodeBlock;
-use crate::syntax_tree::SyntaxTree;
+use super::code_block::CodeBlock;
+use super::syntax_tree::SyntaxTree;
 
 
 pub struct Jit<'a> {
