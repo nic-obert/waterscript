@@ -52,6 +52,7 @@ pub enum ErrorCode {
     ZeroDivision,
     InvalidMemoryAccess,
     UndeclaredSymbol,
+    ReturnOutsideFunction,
 }
 
 
@@ -71,6 +72,7 @@ impl ErrorCode {
             ErrorCode::ZeroDivision => "ZeroDivision",
             ErrorCode::InvalidMemoryAccess => "InvalidMemoryAccess",
             ErrorCode::UndeclaredSymbol => "UndeclaredSymbol",
+            ErrorCode::ReturnOutsideFunction => "ReturnOutsideFunction",
         }
     }
 

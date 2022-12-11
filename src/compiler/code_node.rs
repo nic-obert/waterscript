@@ -17,6 +17,7 @@ pub enum NodeContent<'a> {
     LoopLike { condition: Box<CodeNode<'a>>, body: CodeBlock<'a> },
     IfLike { condition: Box<CodeNode<'a>>, body: CodeBlock<'a>, else_node: Option<Box<CodeNode<'a>>> },
     Function { params: &'a Vec<String>, body: CodeBlock<'a> },
+    Optional { child: Option<Box<CodeNode<'a>>> },
 }
 
 
@@ -81,7 +82,6 @@ impl CodeNode<'_> {
             
             SyntaxNode::Parenthesis { child: operand, .. } |
             SyntaxNode::In { iterable: operand, .. } |
-            SyntaxNode::Return { value: operand, .. } |
             SyntaxNode::Not { operand, .. } => {
                 CodeNode {
                     syntax_node,
@@ -89,6 +89,20 @@ impl CodeNode<'_> {
                     children: NodeContent::ListLike { children: vec![
                         CodeNode::from_syntax_node(operand, source, context),
                     ]}
+                }
+            },
+
+            // Optional operands
+
+            SyntaxNode::Return { value: operand, .. } => {
+                CodeNode {
+                    syntax_node,
+                    code: None,
+                    children: NodeContent::Optional { 
+                        child: operand.as_ref().map(
+                            |operand| Box::new(CodeNode::from_syntax_node(operand, source, context))
+                        )
+                    }
                 }
             },
             
@@ -412,7 +426,14 @@ impl CodeNode<'_> {
                 code
             },
             
-            SyntaxNode::Return { priority, value, line } => todo!(),
+            SyntaxNode::Return { value, .. } => {
+                if value.is_some() {
+                    vec![OpCode::ReturnValue as u8]
+                } else {
+                    vec![OpCode::Return as u8]
+                }
+            },
+            
             SyntaxNode::If { priority, condition, body, else_node, line } => todo!(),
             SyntaxNode::Elif { priority, condition, body, else_node, line } => todo!(),
             SyntaxNode::Else { priority, body, line } => todo!(),

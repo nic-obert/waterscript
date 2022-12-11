@@ -1,7 +1,7 @@
 
 
 // Max is 256
-const OP_CODE_COUNT: usize = 29;
+const OP_CODE_COUNT: usize = 30;
 
 
 #[derive(Clone, Copy)]
@@ -70,7 +70,12 @@ pub enum OpCode {
     Not,
     GetIter,
     Subscript,
+    /// Consume the TOS and return from the function call.
+    /// 
+    /// Set the return value to the consumed TOS.
     ReturnValue,
+    /// Return from a function call without a value.
+    Return,
     PushScope,
     /// Consume the two top-most objects on the object stack.
     /// 
@@ -145,6 +150,7 @@ const OP_CODE_NAMES: [&'static str; OP_CODE_COUNT] = [
     "GetIter",
     "Subscript",
     "ReturnValue",
+    "Return",
     "PushScope",
     "And",
     "Or",

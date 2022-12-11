@@ -100,9 +100,15 @@ impl Vm {
             
             NodeContent::IfLike { condition, body, else_node } => todo!(),
             
-            NodeContent::Function { params, body } => {
+            NodeContent::Function { .. } => {
                 // Do nothing, functions are compiled upon calling
             },
+
+            NodeContent::Optional { child } => {
+                if let Some(child) = child {
+                    self.execute_node(child, source, context);
+                }
+            }
         
         }
 
@@ -159,7 +165,7 @@ impl Vm {
         }
     }
 
-
+// TODO: reimplement the execution functions using a loop to allow for jumps and returns
     fn execute_code(&mut self, code: &ByteCode, source: &str, context: &CodeBlock) {
         let mut pc: usize = 0;
 
@@ -277,7 +283,6 @@ impl Vm {
 
                     // Call the function
                     self.execute_node(code_node, source, context);
-                    
                 },
                 
                 OpCode::MakeFunction => {
@@ -402,7 +407,24 @@ impl Vm {
                 
                 OpCode::Subscript => todo!(),
                 
-                OpCode::ReturnValue => todo!(),
+                OpCode::ReturnValue => {
+
+                },
+
+                OpCode::Return => {
+                    let last_call = if let Some(last_call) = self.call_stack.pop() {
+                        last_call
+                    } else {
+                        self.throw_error(RuntimeError::with_message(
+                            ErrorCode::ReturnOutsideFunction,
+                            "Cannot return outside of a function".to_owned(),
+                        ));
+                    };
+
+                    while self.stack.get_last_stack_index() > last_call.return_index {
+                        self.stack.pop_scope();
+                    }
+                },
 
                 OpCode::PushScope => {
                     self.stack.push_scope();
