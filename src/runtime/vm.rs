@@ -8,6 +8,9 @@ use crate::utils::byte_code::{ByteCode, self};
 use crate::compiler::code_node::{NodeContent, CodeNode};
 
 
+const INITIAL_EXECUTION_QUEUE_CAPACITY: usize = 100;
+
+
 struct FunctionCall {
     /// The object stack index where the return value is stored.
     pub return_index: usize,
@@ -47,6 +50,8 @@ impl Vm {
 
 
     pub fn execute(&mut self, jit: &mut Jit, source: &str, verbose: bool) -> RuntimeError {
+        // Push the global scope
+        self.stack.push_scope();
 
         if verbose {
             // self.run_verbose(jit, source);
@@ -54,12 +59,53 @@ impl Vm {
             self.run(jit, source);
         }
 
+        // If no error was thrown, return no error
         RuntimeError::no_error()
     }
 
 
-    fn run(&mut self, jit: &mut Jit, script: &str) {
-        self.execute_block(&jit.root, script);
+    fn run(&mut self, jit: &mut Jit, source: &str) {
+        let mut execution_queue: Vec<&CodeNode> = Vec::with_capacity(INITIAL_EXECUTION_QUEUE_CAPACITY);
+
+        execution_queue.extend(jit.root.nodes.iter().rev());
+
+        while execution_queue.len() > 0 {
+
+            let node = execution_queue.pop().unwrap();
+
+            // TODO: load all the nodes at once and then start executing
+
+            match &node.children {
+
+                NodeContent::None => {
+                    // Do nothing, there are no children to compile or execute
+                },
+                
+                NodeContent::ListLike { children } => {
+                    execution_queue.extend(children.iter().rev());
+                },
+                
+                NodeContent::Scope { body } => {
+                    execution_queue.extend(body.nodes.iter().rev());
+                },
+                
+                NodeContent::LoopLike { condition, body } => todo!(),
+                
+                NodeContent::IfLike { condition, body, else_node } => todo!(),
+                
+                NodeContent::Function { .. } => {
+                    // Do nothing, functions are compiled upon calling
+                },
+    
+                NodeContent::Optional { child } => {
+                    if let Some(child) = child {
+                        execution_queue.push(child);
+                    }
+                }
+            
+            }
+
+        }
     }
 
 
@@ -80,93 +126,9 @@ impl Vm {
 
 
     fn execute_node(&mut self, node: &CodeNode, source: &str, context: &CodeBlock) {
-        match &node.children {
-
-            NodeContent::None => {
-                // Do nothing, there are no children to compile or execute
-            },
-            
-            NodeContent::ListLike { children } => {
-                for child in children {
-                    self.execute_node(child, source, context);
-                }
-            },
-            
-            NodeContent::Scope { body } => {
-                self.execute_block(body, source);
-            },
-            
-            NodeContent::LoopLike { condition, body } => todo!(),
-            
-            NodeContent::IfLike { condition, body, else_node } => todo!(),
-            
-            NodeContent::Function { .. } => {
-                // Do nothing, functions are compiled upon calling
-            },
-
-            NodeContent::Optional { child } => {
-                if let Some(child) = child {
-                    self.execute_node(child, source, context);
-                }
-            }
         
-        }
 
         let code: &ByteCode = node.get_code(context, source);
-        self.execute_code(code, source, context);
-
-    }
-
-
-    fn execute_block(&mut self, block: &CodeBlock, source: &str) {
-        self.stack.push_scope();
-        
-        for node in &block.nodes {
-            self.execute_node(node, source, block);
-        }
-
-        self.stack.pop_scope();
-    }
-
-
-    fn throw_error(&mut self, error: RuntimeError) -> ! {
-        // TODO: do something if debug mode is on
-        error.raise();
-    }
-
-
-    /// Return the referenced object if the given object is a reference.
-    /// Return the object itself otherwise
-    fn deref_if_ref<'a>(&'a self, object_ref: &'a Object) -> &Object {
-        match object_ref {
-            Object { type_code: TypeCode::Ref, value: Value::Ref(object_ptr), .. } => {
-                unsafe {
-                    &**object_ptr
-                }
-            },
-            _ => {
-                object_ref
-            }
-        }
-    }
-
-
-    fn assign_ref(&mut self, target_ref: &mut Object, value: Object) -> Result<(), RuntimeError> {
-        if let Object { type_code: TypeCode::Ref, value: Value::Ref(object_ptr), .. } = target_ref {
-            unsafe {
-                **object_ptr = value;
-            }
-            Ok(())
-        } else {
-            Err(RuntimeError::with_message(
-                ErrorCode::TypeError,
-                "Cannot assign to non-reference".to_owned(),
-            ))
-        }
-    }
-
-// TODO: reimplement the execution functions using a loop to allow for jumps and returns
-    fn execute_code(&mut self, code: &ByteCode, source: &str, context: &CodeBlock) {
         let mut pc: usize = 0;
 
         while pc < code.len() {
@@ -530,6 +492,44 @@ impl Vm {
 
         }
 
+
+    }
+
+
+    fn throw_error(&mut self, error: RuntimeError) -> ! {
+        // TODO: do something if debug mode is on
+        error.raise();
+    }
+
+
+    /// Return the referenced object if the given object is a reference.
+    /// Return the object itself otherwise
+    fn deref_if_ref<'a>(&'a self, object_ref: &'a Object) -> &Object {
+        match object_ref {
+            Object { type_code: TypeCode::Ref, value: Value::Ref(object_ptr), .. } => {
+                unsafe {
+                    &**object_ptr
+                }
+            },
+            _ => {
+                object_ref
+            }
+        }
+    }
+
+
+    fn assign_ref(&mut self, target_ref: &mut Object, value: Object) -> Result<(), RuntimeError> {
+        if let Object { type_code: TypeCode::Ref, value: Value::Ref(object_ptr), .. } = target_ref {
+            unsafe {
+                **object_ptr = value;
+            }
+            Ok(())
+        } else {
+            Err(RuntimeError::with_message(
+                ErrorCode::TypeError,
+                "Cannot assign to non-reference".to_owned(),
+            ))
+        }
     }
 
 }

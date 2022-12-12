@@ -8,6 +8,7 @@
 
 ### In Progress
 
+- [ ] implement execution lifo queue  
 
 ### Done ✓
 
