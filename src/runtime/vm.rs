@@ -6,22 +6,20 @@ use crate::compiler::jit::Jit;
 use super::memory::{Heap, ScopeStack, Address};
 use crate::utils::byte_code::{ByteCode, self};
 use crate::compiler::code_node::{NodeContent, CodeNode};
-
-
-const INITIAL_EXECUTION_QUEUE_CAPACITY: usize = 100;
+use super::execution_queue::ExecutionQueue;
 
 
 struct FunctionCall {
     /// The object stack index where the return value is stored.
     pub return_index: usize,
     /// The function that was called.
-    pub function: *const CodeNode<'static>,
+    pub function: *const CodeNode,
 }
 
 
 impl FunctionCall {
 
-    pub fn new(return_index: usize, function: *const CodeNode<'static>) -> Self {
+    pub fn new(return_index: usize, function: *const CodeNode) -> Self {
         Self { 
             return_index, 
             function,
@@ -49,7 +47,7 @@ impl Vm {
     }
 
 
-    pub fn execute(&mut self, jit: &mut Jit, source: &str, verbose: bool) -> RuntimeError {
+    pub fn execute(&mut self, jit: &'static mut Jit, source: &str, verbose: bool) -> RuntimeError {
         // Push the global scope
         self.stack.push_scope();
 
@@ -64,8 +62,8 @@ impl Vm {
     }
 
 
-    fn run(&mut self, jit: &mut Jit, source: &str) {
-        let mut execution_queue: Vec<&CodeNode> = Vec::with_capacity(INITIAL_EXECUTION_QUEUE_CAPACITY);
+    fn run(&mut self, jit: &'static mut Jit, source: &str) {
+        let mut execution_queue = ExecutionQueue::new();
 
         execution_queue.extend(jit.root.nodes.iter().rev());
 

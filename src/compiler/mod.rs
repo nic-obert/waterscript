@@ -5,3 +5,4 @@ pub mod jit;
 pub mod syntax_tree;
 pub mod token;
 pub mod tokenizer;
+pub mod syntax_node;

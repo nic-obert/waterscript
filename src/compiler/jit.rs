@@ -2,17 +2,15 @@ use super::code_block::CodeBlock;
 use super::syntax_tree::SyntaxTree;
 
 
-pub struct Jit<'a> {
-    pub source: &'a str,
-    pub root: CodeBlock<'a>,
+pub struct Jit {
+    pub root: CodeBlock,
 }
 
 
-impl Jit<'_> {
+impl Jit {
 
-    pub fn from_syntax_tree<'a>(syntax_tree: &'a SyntaxTree, source: &'a str) -> Jit<'a> {
+    pub fn from_syntax_tree(syntax_tree: SyntaxTree, source: &str) -> Jit {
         Jit {
-            source,
             root: CodeBlock::from_syntax_tree(syntax_tree, source, None),
         }
     }

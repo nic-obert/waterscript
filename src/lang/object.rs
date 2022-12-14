@@ -72,7 +72,7 @@ pub enum Value {
     Bool(bool),
     List(Vec<Object>),
     None,
-    Function(*mut CodeNode<'static>),
+    Function(*mut CodeNode),
     Ref(*mut Object),
 }
 

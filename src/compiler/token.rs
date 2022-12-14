@@ -124,61 +124,6 @@ impl Token {
         }
     }
 
-
-    /// Whether the token needs other following tokens to be satisfied
-    pub fn is_self_stable(&self) -> bool {
-        match self {
-            Token::Identifier { .. } |
-            Token::Integer { .. } |
-            Token::Float { .. } |
-            Token::String { .. } |
-            Token::Boolean { .. } |
-            Token::CloseParen { .. } |
-            Token::CloseBrace { .. } |
-            Token::CloseSquare { .. } |
-            Token::Break { .. } |
-            Token::Continue { .. } |
-            Token::None { .. }
-            => true,
-            
-            Token::Plus { .. } |
-            Token::Minus { .. } |
-            Token::Star { .. } |
-            Token::Slash { .. } |
-            Token::Modulo { .. } |
-            Token::Not { .. } |
-            Token::Less { .. } |
-            Token::Greater { .. } |
-            Token::Fun { .. } |
-            Token::OpenParen { .. } |
-            Token::OpenBrace { .. } |
-            Token::OpenSquare { .. } |            
-            Token::Comma { .. } |
-            Token::PlusEqual { .. } |
-            Token::MinusEqual { .. } |
-            Token::StarEquals { .. } |
-            Token::SlashEqual { .. } |
-            Token::ModuloEqual { .. } |
-            Token::EqualEqual { .. } |
-            Token::NotEqual { .. } |
-            Token::LessEqual { .. } |
-            Token::GreaterEqual { .. } |
-            Token::And { .. } |
-            Token::Or { .. } |
-            Token::Return { .. } |
-            Token::If { .. } |
-            Token::Elif { .. } |
-            Token::Else { .. } |
-            Token::While { .. } |
-            Token::In { .. } |
-            Token::For { .. } |
-            Token::Let { .. }
-            => false,
-
-            _ => unimplemented!("is_self_stable() not implemented for {:?}", self)
-        }
-    }
-
 }
 
 
@@ -384,8 +329,8 @@ impl TokenList {
         self.tokens.push(token);
     }
 
-    pub fn extract_tokens(&mut self) -> Vec<Token> {
-        std::mem::take(&mut self.tokens)
+    pub fn consume_tokens(&mut self) -> Vec<Token> {
+        self.tokens
     }
 
     pub fn last(&self) -> Option<&Token> {

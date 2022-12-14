@@ -5,10 +5,10 @@ use super::syntax_tree::SyntaxTree;
 
 
 /// Represents a scope source code block
-pub struct CodeBlock<'a> {
-    pub nodes: Vec<CodeNode<'a>>,
+pub struct CodeBlock {
+    pub nodes: Vec<CodeNode>,
     local_symbols: HashMap<String, usize>,
-    parent_context: Option<*mut CodeBlock<'a>>,
+    parent_context: Option<*mut CodeBlock>,
 }
 
 
@@ -21,16 +21,16 @@ pub enum ScopeType {
 }
 
 
-impl CodeBlock<'_> {
+impl CodeBlock {
 
-    pub fn from_syntax_tree<'a>(syntax_tree: &'a SyntaxTree, source: &str, context: Option<*mut CodeBlock<'a>>) -> CodeBlock<'a> {
+    pub fn from_syntax_tree(syntax_tree: SyntaxTree, source: &str, context: Option<*mut CodeBlock>) -> CodeBlock {
         let mut this = CodeBlock {
             nodes: Vec::new(),
             local_symbols: HashMap::new(),
             parent_context: context,
         };
         
-        for syntax_node in &syntax_tree.statements {
+        for syntax_node in syntax_tree.statements {
             this.nodes.push(CodeNode::from_syntax_node(syntax_node, source, &this));
         }
 
