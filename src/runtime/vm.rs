@@ -47,7 +47,7 @@ impl Vm {
     }
 
 
-    pub fn execute(&mut self, jit: &'static mut Jit, source: &str, verbose: bool) -> RuntimeError {
+    pub fn execute(&mut self, jit: &mut Jit, source: &str, verbose: bool) -> RuntimeError {
         // Push the global scope
         self.stack.push_scope();
 
@@ -62,7 +62,7 @@ impl Vm {
     }
 
 
-    fn run(&mut self, jit: &'static mut Jit, source: &str) {
+    fn run(&mut self, jit: &mut Jit, source: &str) {
         let mut execution_queue = ExecutionQueue::new();
 
         execution_queue.extend(jit.root.nodes.iter().rev());

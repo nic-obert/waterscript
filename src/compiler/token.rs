@@ -330,7 +330,7 @@ impl TokenList {
     }
 
     pub fn consume_tokens(&mut self) -> Vec<Token> {
-        self.tokens
+        std::mem::take(&mut self.tokens)
     }
 
     pub fn last(&self) -> Option<&Token> {

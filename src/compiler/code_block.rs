@@ -30,7 +30,7 @@ impl CodeBlock {
             parent_context: context,
         };
         
-        for syntax_node in syntax_tree.statements {
+        for syntax_node in &mut syntax_tree.statements {
             this.nodes.push(CodeNode::from_syntax_node(syntax_node, source, &this));
         }
 

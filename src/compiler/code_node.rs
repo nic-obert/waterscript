@@ -41,7 +41,7 @@ impl CodeNode {
     }
 
 
-    pub fn from_syntax_node<'a>(syntax_node: SyntaxNode, source: &str, context: &CodeBlock) -> CodeNode {
+    pub fn from_syntax_node<'a>(syntax_node: &mut SyntaxNode, source: &str, context: &CodeBlock) -> CodeNode {
 
         match syntax_node {
 
@@ -69,11 +69,11 @@ impl CodeNode {
             SyntaxNode::NotEqual { left: op1, right: op2, .. } 
              => {
                 CodeNode {
-                    syntax_node,
+                    syntax_node: std::mem::take(syntax_node),
                     code: None,
                     children: NodeContent::ListLike { children: vec![
-                        CodeNode::from_syntax_node(*op1, source, context),
-                        CodeNode::from_syntax_node(*op2, source, context),
+                        CodeNode::from_syntax_node(op1, source, context),
+                        CodeNode::from_syntax_node(op2, source, context),
                     ]}
                 }
             },
@@ -84,10 +84,10 @@ impl CodeNode {
             SyntaxNode::In { iterable: operand, .. } |
             SyntaxNode::Not { operand, .. } => {
                 CodeNode {
-                    syntax_node,
+                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::ListLike { children: vec![
-                        CodeNode::from_syntax_node(*operand, source, context),
+                        CodeNode::from_syntax_node(operand, source, context),
                     ]}
                 }
             },
@@ -96,11 +96,11 @@ impl CodeNode {
 
             SyntaxNode::Return { value: operand, .. } => {
                 CodeNode {
-                    syntax_node,
+                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::Optional { 
                         child: operand.map(
-                            |operand| Box::new(CodeNode::from_syntax_node(*operand, source, context))
+                            |operand| Box::new(CodeNode::from_syntax_node(operand.as_ref(), source, context))
                         )
                     }
                 }
@@ -119,7 +119,7 @@ impl CodeNode {
             SyntaxNode::Continue { .. } 
              => {
                 CodeNode {
-                    syntax_node,
+                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::None,
                 }
@@ -127,17 +127,17 @@ impl CodeNode {
             
             SyntaxNode::List { elements, .. } => {
                 CodeNode {
-                    syntax_node,
+                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::ListLike { children: elements.iter().map(
-                        |child| CodeNode::from_syntax_node(*child, source, context)
+                        |child| CodeNode::from_syntax_node(child, source, context)
                     ).collect() }
                 }
             },
 
             SyntaxNode::Call { function, arguments, .. } => {
                 let mut children = vec![
-                    CodeNode::from_syntax_node(*function, source, context),
+                    CodeNode::from_syntax_node(function, source, context),
                 ];
 
                 for argument in arguments {
@@ -145,7 +145,7 @@ impl CodeNode {
                 }
 
                 CodeNode {
-                    syntax_node,
+                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::ListLike { children },
                 }
@@ -154,21 +154,21 @@ impl CodeNode {
             SyntaxNode::Else { body, .. } |
             SyntaxNode::Scope { body, .. } => {
                 CodeNode {
-                    syntax_node,
+                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::Scope { 
-                        body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
+                        body: CodeBlock::from_syntax_tree(*body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     },
                 }
             },
             
             SyntaxNode::Fun { params, body, .. } => {
                 CodeNode {
-                    syntax_node,
+                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::Function {
                         params: params.iter().collect(),
-                        body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
+                        body: CodeBlock::from_syntax_tree(*body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     }
                 }
             },
@@ -177,11 +177,11 @@ impl CodeNode {
             SyntaxNode::For { iterable: loop_controller, body, .. } 
              => {
                 CodeNode {
-                    syntax_node,
+                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::LoopLike { 
-                        condition: Box::new(CodeNode::from_syntax_node(*loop_controller, source, context)),
-                        body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
+                        condition: Box::new(CodeNode::from_syntax_node(loop_controller, source, context)),
+                        body: CodeBlock::from_syntax_tree(*body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     }
                 }
             },
@@ -190,13 +190,13 @@ impl CodeNode {
             SyntaxNode::Elif { condition, body, else_node, .. }
              => {
                 CodeNode {
-                    syntax_node,
+                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::IfLike { 
-                        condition: Box::new(CodeNode::from_syntax_node(*condition, source, context)),
-                        body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock)),
+                        condition: Box::new(CodeNode::from_syntax_node(condition, source, context)),
+                        body: CodeBlock::from_syntax_tree(*body, source, Some(context as *const CodeBlock as *mut CodeBlock)),
                         else_node: else_node.map(
-                            |else_node| Box::new(CodeNode::from_syntax_node(*else_node, source, context))
+                            |else_node| Box::new(CodeNode::from_syntax_node(else_node.as_ref(), source, context))
                         )
                     }
                 }

@@ -2,18 +2,18 @@ use crate::compiler::code_node::CodeNode;
 
 
 const INITIAL_EXECUTION_QUEUE_CAPACITY: usize = 100;
-type ElementType = &'static CodeNode;
-type QueueType = Vec<ElementType>;
+type ElementType<'a> = &'a CodeNode;
+type QueueType<'a> = Vec<ElementType<'a>>;
 
 
-pub struct ExecutionQueue {
-    queue: QueueType,
+pub struct ExecutionQueue<'a> {
+    queue: QueueType<'a>,
 }
 
 
-impl ExecutionQueue {
+impl ExecutionQueue<'_> {
 
-    pub fn new() -> ExecutionQueue {
+    pub fn new() -> ExecutionQueue<'static> {
         ExecutionQueue {
             queue: Vec::with_capacity(INITIAL_EXECUTION_QUEUE_CAPACITY),
         }
@@ -31,7 +31,7 @@ impl ExecutionQueue {
         self.queue.len()
     }
 
-    pub fn extend<'a, I: IntoIterator<Item = ElementType>>(&mut self, iter: I) {
+    pub fn extend<'a, I: IntoIterator<Item = ElementType<'a>>>(&mut self, iter: I) {
         self.queue.extend(iter);
     }
 

@@ -11,8 +11,8 @@ pub struct SyntaxTree {
 
 impl SyntaxTree {
 
-    pub fn from_tokens(tokens: Vec<Token>, source: &str) -> SyntaxTree {
-        let mut raw_statements = syntax_node::tokens_to_syntax_node_statements(&tokens, source);
+    pub fn from_tokens(tokens: &[Token], source: &str) -> SyntaxTree {
+        let mut raw_statements = syntax_node::tokens_to_syntax_node_statements(tokens, source);
 
         let statements = raw_statements.iter_mut().map(
             |statement| syntax_node::parse_statement(statement, source)
