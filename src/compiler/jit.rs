@@ -11,7 +11,7 @@ impl Jit {
 
     pub fn from_syntax_tree(syntax_tree: SyntaxTree, source: &str) -> Jit {
         Jit {
-            root: CodeBlock::from_syntax_tree(syntax_tree, source, None),
+            root: CodeBlock::from_syntax_tree(&mut syntax_tree, source, None),
         }
     }
 

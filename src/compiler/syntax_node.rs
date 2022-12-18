@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 
 
 /// Represents a syntax unit with meaning.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum SyntaxNode {
 
     // Operators
@@ -62,6 +62,7 @@ pub enum SyntaxNode {
     Parenthesis { priority: usize, child: Box<SyntaxNode>, line: usize },
 
     // Misc
+    #[default]
     Placeholder,
 
 }

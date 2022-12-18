@@ -23,7 +23,7 @@ pub enum ScopeType {
 
 impl CodeBlock {
 
-    pub fn from_syntax_tree(syntax_tree: SyntaxTree, source: &str, context: Option<*mut CodeBlock>) -> CodeBlock {
+    pub fn from_syntax_tree(syntax_tree: &mut SyntaxTree, source: &str, context: Option<*mut CodeBlock>) -> CodeBlock {
         let mut this = CodeBlock {
             nodes: Vec::new(),
             local_symbols: HashMap::new(),

@@ -69,12 +69,12 @@ impl CodeNode {
             SyntaxNode::NotEqual { left: op1, right: op2, .. } 
              => {
                 CodeNode {
-                    syntax_node: std::mem::take(syntax_node),
                     code: None,
                     children: NodeContent::ListLike { children: vec![
                         CodeNode::from_syntax_node(op1, source, context),
                         CodeNode::from_syntax_node(op2, source, context),
-                    ]}
+                    ]},
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
             
@@ -84,11 +84,11 @@ impl CodeNode {
             SyntaxNode::In { iterable: operand, .. } |
             SyntaxNode::Not { operand, .. } => {
                 CodeNode {
-                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::ListLike { children: vec![
                         CodeNode::from_syntax_node(operand, source, context),
-                    ]}
+                    ]},
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
 
@@ -96,13 +96,13 @@ impl CodeNode {
 
             SyntaxNode::Return { value: operand, .. } => {
                 CodeNode {
-                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::Optional { 
-                        child: operand.map(
-                            |operand| Box::new(CodeNode::from_syntax_node(operand.as_ref(), source, context))
-                        )
-                    }
+                        child: operand.take().map(
+                            |mut op| Box::new(CodeNode::from_syntax_node(op.as_mut(), source, context))
+                        ),
+                    },
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
             
@@ -119,19 +119,19 @@ impl CodeNode {
             SyntaxNode::Continue { .. } 
              => {
                 CodeNode {
-                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::None,
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
             
             SyntaxNode::List { elements, .. } => {
                 CodeNode {
-                    syntax_node: *syntax_node,
                     code: None,
-                    children: NodeContent::ListLike { children: elements.iter().map(
+                    children: NodeContent::ListLike { children: elements.iter_mut().map(
                         |child| CodeNode::from_syntax_node(child, source, context)
-                    ).collect() }
+                    ).collect() },
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
 
@@ -145,31 +145,31 @@ impl CodeNode {
                 }
 
                 CodeNode {
-                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::ListLike { children },
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
             
             SyntaxNode::Else { body, .. } |
             SyntaxNode::Scope { body, .. } => {
                 CodeNode {
-                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::Scope { 
-                        body: CodeBlock::from_syntax_tree(*body, source, Some(context as *const CodeBlock as *mut CodeBlock))
+                        body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     },
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
             
             SyntaxNode::Fun { params, body, .. } => {
                 CodeNode {
-                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::Function {
                         params: params.iter().collect(),
-                        body: CodeBlock::from_syntax_tree(*body, source, Some(context as *const CodeBlock as *mut CodeBlock))
-                    }
+                        body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
+                    },
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
 
@@ -177,12 +177,12 @@ impl CodeNode {
             SyntaxNode::For { iterable: loop_controller, body, .. } 
              => {
                 CodeNode {
-                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::LoopLike { 
                         condition: Box::new(CodeNode::from_syntax_node(loop_controller, source, context)),
-                        body: CodeBlock::from_syntax_tree(*body, source, Some(context as *const CodeBlock as *mut CodeBlock))
-                    }
+                        body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
+                    },
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
             
@@ -190,15 +190,15 @@ impl CodeNode {
             SyntaxNode::Elif { condition, body, else_node, .. }
              => {
                 CodeNode {
-                    syntax_node: *syntax_node,
                     code: None,
                     children: NodeContent::IfLike { 
                         condition: Box::new(CodeNode::from_syntax_node(condition, source, context)),
-                        body: CodeBlock::from_syntax_tree(*body, source, Some(context as *const CodeBlock as *mut CodeBlock)),
+                        body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock)),
                         else_node: else_node.map(
-                            |else_node| Box::new(CodeNode::from_syntax_node(else_node.as_ref(), source, context))
+                            |else_node| Box::new(CodeNode::from_syntax_node(&mut else_node, source, context))
                         )
-                    }
+                    },
+                    syntax_node: std::mem::take(syntax_node),
                 }
             },
         
@@ -215,7 +215,7 @@ impl CodeNode {
         };
     
         // Compile the syntax node into byte code
-        self_mut.code = Some(match self.syntax_node {
+        self_mut.code = Some(match &self.syntax_node {
     
             SyntaxNode::Add { .. } => {
                 vec![OpCode::Add as u8]
@@ -329,7 +329,7 @@ impl CodeNode {
                 let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
-                code.extend(byte_code::obj_from_int(value));
+                code.extend(byte_code::obj_from_int(*value));
                 code
             },
             
@@ -337,7 +337,7 @@ impl CodeNode {
                 let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
-                code.extend(byte_code::obj_from_float(value));
+                code.extend(byte_code::obj_from_float(*value));
                 code
             },
             
@@ -345,7 +345,7 @@ impl CodeNode {
                 let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
-                code.extend(byte_code::obj_from_string(&value));
+                code.extend(byte_code::obj_from_string(value));
                 code
             },
     
@@ -353,7 +353,7 @@ impl CodeNode {
                 let mut code: ByteCode = vec![
                     OpCode::LoadConst as u8,
                 ];
-                code.extend(byte_code::obj_from_boolean(value));
+                code.extend(byte_code::obj_from_boolean(*value));
                 code
             },
     
@@ -391,7 +391,7 @@ impl CodeNode {
                     }
 
                 } else {
-                    error::undeclared_symbol(&name, line, source);
+                    error::undeclared_symbol(&name, *line, source);
                 }
 
                 code
