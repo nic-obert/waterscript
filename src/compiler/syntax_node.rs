@@ -69,7 +69,7 @@ pub enum SyntaxNode {
 
 
 // Const blank enum variants for comparison
-const PLACEHOLDER: SyntaxNode = SyntaxNode::Placeholder;
+pub const PLACEHOLDER: SyntaxNode = SyntaxNode::Placeholder;
 
 #[inline]
 fn placeholder() -> Box<SyntaxNode> {

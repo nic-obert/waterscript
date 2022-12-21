@@ -1,4 +1,5 @@
 use crate::compiler::code_block::CodeBlock;
+use crate::compiler::syntax_node;
 use super::op_code::OpCode;
 use super::error_codes::{RuntimeError, ErrorCode};
 use crate::lang::object::{Object, TypeCode, Value};
@@ -6,7 +7,7 @@ use crate::compiler::jit::Jit;
 use super::memory::{Heap, ScopeStack, Address};
 use crate::utils::byte_code::{ByteCode, self};
 use crate::compiler::code_node::{NodeContent, CodeNode};
-use super::execution_queue::ExecutionQueue;
+use super::execution_queue::{self, ExecutionQueue};
 
 
 struct FunctionCall {
@@ -63,13 +64,17 @@ impl Vm {
 
 
     fn run(&mut self, jit: &mut Jit, source: &str) {
-        let mut execution_queue = ExecutionQueue::new();
+        let pop_scope_node = CodeNode::pop_scope_node();
 
-        execution_queue.extend(jit.root.nodes.iter().rev());
+        let mut queue = execution_queue::new_queue();
 
-        while execution_queue.len() > 0 {
+        execution_queue::extend_queue(&queue, &jit.root.nodes);
 
-            let node = execution_queue.pop().unwrap();
+        while queue.len() > 0 {
+
+            // Don't remove the node from the queue because it may have children
+            // to be executed first
+            let node = queue.last().unwrap();
 
             // TODO: load all the nodes at once and then start executing
 
@@ -77,14 +82,23 @@ impl Vm {
 
                 NodeContent::None => {
                     // Do nothing, there are no children to compile or execute
+                    // Execute the current node in the queue
                 },
                 
                 NodeContent::ListLike { children } => {
-                    execution_queue.extend(children.iter().rev());
+                    // Push the children to execute first onto the queue
+                    execution_queue::extend_queue(&queue, children);
+                    continue;
                 },
                 
                 NodeContent::Scope { body } => {
-                    execution_queue.extend(body.nodes.iter().rev());
+                    // Push the pop scope instruction
+                    queue.push(&pop_scope_node);
+
+                    // Push the scope contents
+                    execution_queue::extend_queue(&queue, &body.nodes);
+
+                    // Don't continue in order to execute the push scope instruction
                 },
                 
                 NodeContent::LoopLike { condition, body } => todo!(),
@@ -97,12 +111,18 @@ impl Vm {
     
                 NodeContent::Optional { child } => {
                     if let Some(child) = child {
-                        execution_queue.push(child);
+                        queue.push(child);
                     }
+                    continue;
                 }
             
             }
 
+            // Execute the current node
+
+
+            // Finally, remove the last node from the queue after it has been executed
+            queue.pop();
         }
     }
 

@@ -3,7 +3,7 @@ use crate::utils::byte_code::{ByteCode, self};
 use super::error;
 use crate::lang::object::TypeCode;
 use crate::runtime::op_code::OpCode;
-use super::syntax_node::SyntaxNode;
+use super::syntax_node::{SyntaxNode, self};
 
 
 pub enum NodeContent {
@@ -16,19 +16,29 @@ pub enum NodeContent {
     /// The node is a loop and requires its condition to be executed before the body.
     LoopLike { condition: Box<CodeNode>, body: CodeBlock },
     IfLike { condition: Box<CodeNode>, body: CodeBlock, else_node: Option<Box<CodeNode>> },
-    Function { params: Vec<&'static String>, body: CodeBlock },
+    Function { params: Vec<String>, body: CodeBlock },
     Optional { child: Option<Box<CodeNode>> },
 }
 
 
 pub struct CodeNode {
     pub syntax_node: SyntaxNode,
-    code: Option<ByteCode>,
+    pub(crate) code: Option<ByteCode>,
     pub children: NodeContent,
 }
 
 
 impl CodeNode {
+
+    pub fn pop_scope_node() -> CodeNode {
+        CodeNode {
+            syntax_node: syntax_node::PLACEHOLDER,
+            code: Some(vec![
+                OpCode::PopScope as u8,
+            ]),
+            children: NodeContent::None,
+        }
+    }
 
 
     pub fn get_code(&self, context: &CodeBlock, source: &str) -> &ByteCode {
@@ -158,7 +168,7 @@ impl CodeNode {
                     children: NodeContent::Scope { 
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     },
-                    syntax_node: std::mem::take(syntax_node),
+                    syntax_node: std::mem::take(syntax_node), 
                 }
             },
             
@@ -166,7 +176,7 @@ impl CodeNode {
                 CodeNode {
                     code: None,
                     children: NodeContent::Function {
-                        params: params.iter().collect(),
+                        params: std::mem::take(params),
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     },
                     syntax_node: std::mem::take(syntax_node),
@@ -194,8 +204,8 @@ impl CodeNode {
                     children: NodeContent::IfLike { 
                         condition: Box::new(CodeNode::from_syntax_node(condition, source, context)),
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock)),
-                        else_node: else_node.map(
-                            |else_node| Box::new(CodeNode::from_syntax_node(&mut else_node, source, context))
+                        else_node: else_node.as_mut().map(
+                            |else_node| Box::new(CodeNode::from_syntax_node(else_node.as_mut(), source, context))
                         )
                     },
                     syntax_node: std::mem::take(syntax_node),
