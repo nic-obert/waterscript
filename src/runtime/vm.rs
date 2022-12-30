@@ -1,5 +1,3 @@
-use crate::compiler::code_block::CodeBlock;
-use crate::compiler::syntax_node;
 use crate::utils::string::get_lines;
 use super::op_code::OpCode;
 use super::error_codes::{RuntimeError, ErrorCode};
@@ -8,7 +6,7 @@ use crate::compiler::jit::Jit;
 use super::memory::{Heap, ScopeStack, Address};
 use crate::utils::byte_code::{ByteCode, self};
 use crate::compiler::code_node::{NodeContent, CodeNode};
-use super::execution_queue::{self, ExecutionQueue};
+use super::execution_queue;
 
 
 struct FunctionCall {
@@ -41,12 +39,12 @@ pub struct Vm {
 
 impl Vm {
 
-    pub fn new(debug: bool) -> Vm {
+    pub fn new(verbose: bool) -> Vm {
         Vm {
             stack: ScopeStack::new(),
             heap: Heap::new(),
             call_stack: Vec::new(),
-            verbose: debug,
+            verbose,
         }
     }
 
