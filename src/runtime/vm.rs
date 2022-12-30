@@ -1,5 +1,6 @@
 use crate::compiler::code_block::CodeBlock;
 use crate::compiler::syntax_node;
+use crate::utils::string::get_lines;
 use super::op_code::OpCode;
 use super::error_codes::{RuntimeError, ErrorCode};
 use crate::lang::object::{Object, TypeCode, Value};
@@ -34,16 +35,18 @@ pub struct Vm {
     stack: ScopeStack,
     call_stack: Vec<FunctionCall>,
     heap: Heap,
+    verbose: bool,
 }
 
 
 impl Vm {
 
-    pub fn new() -> Vm {
+    pub fn new(debug: bool) -> Vm {
         Vm {
             stack: ScopeStack::new(),
             heap: Heap::new(),
             call_stack: Vec::new(),
+            verbose: debug,
         }
     }
 
@@ -93,7 +96,7 @@ impl Vm {
                 
                 NodeContent::Scope { body } => {
                     // Push the pop scope instruction
-                    queue.push(&pop_scope_node);
+                    execution_queue::push_queue(&queue, &pop_scope_node);
 
                     // Push the scope contents
                     execution_queue::extend_queue(&queue, &body.nodes);
@@ -111,7 +114,7 @@ impl Vm {
     
                 NodeContent::Optional { child } => {
                     if let Some(child) = child {
-                        queue.push(child);
+                        execution_queue::push_queue(&queue, child);
                     }
                     continue;
                 }
@@ -119,6 +122,7 @@ impl Vm {
             }
 
             // Execute the current node
+            self.execute_node(node, source);
 
 
             // Finally, remove the last node from the queue after it has been executed
@@ -143,10 +147,8 @@ impl Vm {
     // }
 
 
-    fn execute_node(&mut self, node: &CodeNode, source: &str, context: &CodeBlock) {
-        
-
-        let code: &ByteCode = node.get_code(context, source);
+    fn execute_node(&mut self, node: &CodeNode, source: &str) {
+        let code: &ByteCode = node.get_code(source);
         let mut pc: usize = 0;
 
         while pc < code.len() {
@@ -170,7 +172,7 @@ impl Vm {
                             self.stack.push(object_ref);
                         },
                         Err(error) => {
-                            self.throw_error(error);
+                            self.throw_error(error, node, source);
                         }
                     }
                 },
@@ -185,7 +187,7 @@ impl Vm {
                             self.stack.push(object_ref);
                         },
                         Err(error) => {
-                            self.throw_error(error);
+                            self.throw_error(error, node, source);
                         }
                     }
                 },
@@ -203,7 +205,7 @@ impl Vm {
                             self.stack.push(object_ref);
                         },
                         Err(error) => {
-                            self.throw_error(error);
+                            self.throw_error(error, node, source);
                         }
                     }
                 },
@@ -247,7 +249,7 @@ impl Vm {
                             self.throw_error(RuntimeError::with_message(
                                 ErrorCode::TypeError,
                                 "Object is not callable".to_owned()
-                            ));
+                            ), node, source);
                         }
                     };
                     
@@ -262,7 +264,7 @@ impl Vm {
                     };
 
                     // Call the function
-                    self.execute_node(code_node, source, context);
+                    self.execute_node(code_node, source);
                 },
                 
                 OpCode::MakeFunction => {
@@ -279,7 +281,7 @@ impl Vm {
                     let mut l_ref = self.stack.pop_require();
 
                     if let Err(error) = self.assign_ref(&mut l_ref, r_obj) {
-                        self.throw_error(error);
+                        self.throw_error(error, node, source);
                     }
                 },
                 
@@ -292,7 +294,7 @@ impl Vm {
 
                     match Object::add(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -305,7 +307,7 @@ impl Vm {
 
                     match Object::sub(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -318,7 +320,7 @@ impl Vm {
 
                     match Object::mul(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -331,7 +333,7 @@ impl Vm {
 
                     match Object::div(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -344,7 +346,7 @@ impl Vm {
 
                     match Object::rem(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -379,7 +381,7 @@ impl Vm {
 
                     match Object::not(a) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),                        
+                        Err(error) => self.throw_error(error, node, source),                        
                     }
                 },
                 
@@ -398,7 +400,7 @@ impl Vm {
                         self.throw_error(RuntimeError::with_message(
                             ErrorCode::ReturnOutsideFunction,
                             "Cannot return outside of a function".to_owned(),
-                        ));
+                        ), node, source);
                     };
 
                     while self.stack.get_last_stack_index() > last_call.return_index {
@@ -419,7 +421,7 @@ impl Vm {
 
                     match Object::and(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -432,7 +434,7 @@ impl Vm {
 
                     match Object::or(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -445,7 +447,7 @@ impl Vm {
 
                     match Object::greater(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -458,7 +460,7 @@ impl Vm {
 
                     match Object::greater_eq(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -471,7 +473,7 @@ impl Vm {
 
                     match Object::less(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
                 
@@ -484,7 +486,7 @@ impl Vm {
 
                     match Object::less_eq(a, b) {
                         Ok(obj) => self.stack.push(obj),
-                        Err(error_code) => self.throw_error(error_code),
+                        Err(error) => self.throw_error(error, node, source),
                     }
                 },
 
@@ -514,8 +516,11 @@ impl Vm {
     }
 
 
-    fn throw_error(&mut self, error: RuntimeError) -> ! {
-        // TODO: do something if debug mode is on
+    fn throw_error(&mut self, error: RuntimeError, node: &CodeNode, source: &str) -> ! {
+        if self.verbose {
+            eprintln!("Error at line {}:\n\n{}", node.syntax_node.get_line(), get_lines(source, node.syntax_node.get_line(), 2));
+        }
+
         error.raise();
     }
 

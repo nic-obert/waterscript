@@ -22,3 +22,13 @@ pub fn extend_queue<'a>(queue: &'a ExecutionQueue<'a>, nodes: &'a [CodeNode]) {
     queue.extend(nodes.iter().rev());
 }
 
+
+/// Push the node onto the queue
+pub fn push_queue<'a>(queue: &'a ExecutionQueue<'a>, node: ElementType<'a>) {
+    // Interior mutability
+    let queue = unsafe {
+        &mut *(queue as *const ExecutionQueue as *mut ExecutionQueue)
+    };
+    queue.push(node);
+}
+

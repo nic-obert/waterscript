@@ -38,7 +38,7 @@ fn main() {
     
     let mut jit = compiler::jit::Jit::from_syntax_tree(syntax_tree, &source);
 
-    let mut vm = runtime::vm::Vm::new();
+    let mut vm = runtime::vm::Vm::new(args.verbose);
     let status = vm.execute(&mut jit, &source, args.verbose);
 
     if !args.quiet {

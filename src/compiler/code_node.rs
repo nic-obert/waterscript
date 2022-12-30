@@ -25,6 +25,7 @@ pub struct CodeNode {
     pub syntax_node: SyntaxNode,
     pub(crate) code: Option<ByteCode>,
     pub children: NodeContent,
+    pub context: *const CodeBlock,
 }
 
 
@@ -37,15 +38,17 @@ impl CodeNode {
                 OpCode::PopScope as u8,
             ]),
             children: NodeContent::None,
+            // This will never be used
+            context: std::ptr::null(),
         }
     }
 
 
-    pub fn get_code(&self, context: &CodeBlock, source: &str) -> &ByteCode {
+    pub fn get_code(&self, source: &str) -> &ByteCode {
         if let Some(code) = &self.code {
             code
         } else {
-            self.compile(context, source);
+            self.compile(source);
             self.code.as_ref().unwrap()
         }
     }
@@ -85,6 +88,7 @@ impl CodeNode {
                         CodeNode::from_syntax_node(op2, source, context),
                     ]},
                     syntax_node: std::mem::take(syntax_node),
+                    context: context as *const CodeBlock,
                 }
             },
             
@@ -99,6 +103,7 @@ impl CodeNode {
                         CodeNode::from_syntax_node(operand, source, context),
                     ]},
                     syntax_node: std::mem::take(syntax_node),
+                    context: context as *const CodeBlock,
                 }
             },
 
@@ -113,6 +118,7 @@ impl CodeNode {
                         ),
                     },
                     syntax_node: std::mem::take(syntax_node),
+                    context: context as *const CodeBlock,
                 }
             },
             
@@ -132,6 +138,7 @@ impl CodeNode {
                     code: None,
                     children: NodeContent::None,
                     syntax_node: std::mem::take(syntax_node),
+                    context: context as *const CodeBlock,
                 }
             },
             
@@ -142,6 +149,7 @@ impl CodeNode {
                         |child| CodeNode::from_syntax_node(child, source, context)
                     ).collect() },
                     syntax_node: std::mem::take(syntax_node),
+                    context: context as *const CodeBlock,
                 }
             },
 
@@ -158,6 +166,7 @@ impl CodeNode {
                     code: None,
                     children: NodeContent::ListLike { children },
                     syntax_node: std::mem::take(syntax_node),
+                    context: context as *const CodeBlock,
                 }
             },
             
@@ -169,6 +178,7 @@ impl CodeNode {
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     },
                     syntax_node: std::mem::take(syntax_node), 
+                    context: context as *const CodeBlock,
                 }
             },
             
@@ -180,6 +190,7 @@ impl CodeNode {
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     },
                     syntax_node: std::mem::take(syntax_node),
+                    context: context as *const CodeBlock,
                 }
             },
 
@@ -193,6 +204,7 @@ impl CodeNode {
                         body: CodeBlock::from_syntax_tree(body, source, Some(context as *const CodeBlock as *mut CodeBlock))
                     },
                     syntax_node: std::mem::take(syntax_node),
+                    context: context as *const CodeBlock,
                 }
             },
             
@@ -209,6 +221,7 @@ impl CodeNode {
                         )
                     },
                     syntax_node: std::mem::take(syntax_node),
+                    context: context as *const CodeBlock,
                 }
             },
         
@@ -217,7 +230,7 @@ impl CodeNode {
     }
 
 
-    pub fn compile(&self, context: &CodeBlock, source: &str) {
+    pub fn compile(&self, source: &str) {
 
         // Interior mutability
         let self_mut = unsafe {
@@ -382,7 +395,7 @@ impl CodeNode {
                 // Create a vector with 9 slots for the load instruction (1 byte) and the symbol id (8 bytes)
                 let mut code: ByteCode = Vec::with_capacity(9);
 
-                if let Some(scope_type) = context.get_symbol_id(&name, 0) {
+                if let Some(scope_type) = unsafe {&*(self.context)}.get_symbol_id(&name, 0) {
                     
                     match scope_type {
                         ScopeType::Local { local_id } => {
@@ -416,7 +429,7 @@ impl CodeNode {
             
             SyntaxNode::Fun { name, .. } => {
                 // Declare the new function in the symbol table
-                context.declare_local(&name);
+                unsafe {&*(self.context)}.declare_local(&name);
 
                 let mut code: ByteCode = vec![
                     // Allocate space for the new function on the heap
@@ -464,7 +477,7 @@ impl CodeNode {
             },
             
             SyntaxNode::Let { symbol_name, .. } => {    
-                context.declare_local(&symbol_name);
+                unsafe {&*(self.context)}.declare_local(&symbol_name);
     
                 vec![
                     OpCode::Allocate as u8,
