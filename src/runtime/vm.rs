@@ -102,9 +102,18 @@ impl Vm {
                     // Don't continue in order to execute the push scope instruction
                 },
                 
-                NodeContent::LoopLike { condition, body } => todo!(),
+                NodeContent::LoopLike { condition, body } => {
+                    todo!()
+                },
                 
-                NodeContent::IfLike { condition, body, else_node } => todo!(),
+                NodeContent::IfLike { condition, body, else_node } => {
+                    execution_queue::push_queue(&queue, condition);
+
+                    todo!()
+
+                    // Continue in order to execute the condition first
+                    continue;
+                },
                 
                 NodeContent::Function { .. } => {
                     // Do nothing, functions are compiled upon calling

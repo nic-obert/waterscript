@@ -457,7 +457,10 @@ impl CodeNode {
                 }
             },
             
-            SyntaxNode::If { priority, condition, body, else_node, line } => todo!(),
+            SyntaxNode::If { body, .. } => {
+                todo!("Create some jump instruction")
+            },
+
             SyntaxNode::Elif { priority, condition, body, else_node, line } => todo!(),
             SyntaxNode::Else { priority, body, line } => todo!(),
             SyntaxNode::While { priority, condition, body, line } => todo!(),
